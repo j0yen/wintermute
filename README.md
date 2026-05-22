@@ -9,6 +9,67 @@ All tools are single-file Python 3 scripts (no deps beyond the stdlib + the
 platform binary each one shells out to: `bwrap`, `watchman`, `tmux`,
 `bpftrace`, `bpftool`).
 
+## Linux compatibility
+
+Wintermute is **Linux-only**. macOS, *BSD, Windows, and WSL2 are unsupported
+— the eBPF tools (`ctrace`, `bpolicy`) need real Linux kernel features that
+neither Darwin nor WSL2 expose reliably.
+
+The binding constraint is `bpolicy`, which hooks `lsm/file_open`. Everything
+else is much more permissive.
+
+### Kernel requirements
+
+| Feature           | Used by                | Minimum kernel |
+| ----------------- | ---------------------- | -------------- |
+| user namespaces   | `sbx` (`bwrap`)        | 3.8            |
+| cgroup v2         | `sbx`, `procstat`      | 4.5 (5.x for full controllers) |
+| `pidfd_open(2)`   | `pevent`               | 5.3            |
+| eBPF + BTF        | `ctrace` (`bpftrace`)  | 5.4 with `CONFIG_DEBUG_INFO_BTF=y` |
+| **eBPF-LSM**      | **`bpolicy`**          | **5.7 with `CONFIG_BPF_LSM=y` *and* `lsm=…,bpf` in kernel cmdline** |
+
+`bpolicy` will refuse to load if `CONFIG_BPF_LSM` is off or `bpf` is missing
+from the active LSM list (`cat /sys/kernel/security/lsm`). The other seven
+tools work fine on any modern kernel.
+
+### Tested / known-good distros
+
+| Distro                  | Status      | Notes |
+| ----------------------- | ----------- | ----- |
+| Arch Linux (rolling)    | primary     | development environment; everything works out of the box |
+| Fedora 38+              | works       | ships `CONFIG_BPF_LSM=y` and `lsm=…,bpf` by default |
+| Ubuntu 22.04 / 24.04    | partial     | `CONFIG_BPF_LSM=y` is set but `bpf` is not in the default `lsm=` cmdline; add it via GRUB to use `bpolicy` |
+| Debian 12               | partial     | same caveat as Ubuntu — kernel supports it, cmdline does not enable it |
+| NixOS                   | works       | set `boot.kernelParams = [ "lsm=landlock,lockdown,yama,integrity,apparmor,bpf" ]` (adjust to match your kernel's defaults) |
+| Alpine                  | partial     | musl is fine; verify `CONFIG_BPF_LSM` on the chosen kernel flavor |
+| RHEL / CentOS Stream 9  | partial     | kernel ≥ 5.14; check the active cmdline for `bpf` |
+| WSL2                    | unsupported | no control over kernel cmdline; eBPF-LSM not available |
+| macOS / *BSD            | unsupported | no eBPF, no `bwrap`                                   |
+
+### Userspace dependencies
+
+| Tool        | Needs                                  |
+| ----------- | -------------------------------------- |
+| `sbx`       | `bubblewrap`                           |
+| `pevent`    | Python 3 stdlib only                   |
+| `wchg`      | `watchman`                             |
+| `procstat`  | Python 3 stdlib only (`/proc`)         |
+| `txn-edit`  | Python 3 stdlib only                   |
+| `tcap`      | `tmux`                                 |
+| `ctrace`    | `bpftrace` + a kernel with BTF         |
+| `bpolicy`   | `clang`, `libbpf`, `bpftool`; root to load |
+
+All Python scripts target **Python 3.8+**.
+
+To check your kernel quickly:
+
+```sh
+uname -r
+zgrep CONFIG_BPF_LSM /proc/config.gz 2>/dev/null || \
+  grep CONFIG_BPF_LSM /boot/config-$(uname -r)
+cat /sys/kernel/security/lsm        # 'bpf' must appear for bpolicy
+```
+
 ## Install
 
 ```sh
