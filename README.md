@@ -136,6 +136,10 @@ Build deps: `clang`, `libbpf`, `bpftool` (to regenerate `vmlinux.h` —
 Known quirk: the LSM hook fires after the inode is created, so denied writes
 can leave a zero-byte file behind.
 
+## License
+
+MIT — see [LICENSE](LICENSE).
+
 ## Why this exists
 
 Agent-friendly infrastructure. The premise: an agent is less likely to make
