@@ -11,14 +11,15 @@ truth; the index is rebuildable from disk.
 
 ## Status
 
-| Phase | Scope                                                                | Status |
-| ----- | -------------------------------------------------------------------- | ------ |
-| 0     | Data layout under `~/.claude/recall/`                                | done   |
-| 1     | File store + FTS5 keyword index + ranked retrieval + CLI             | done   |
-| 2     | Local embeddings + hybrid retrieval; confidence + decay              | todo   |
-| 3     | Within-session scratch + compaction survival                          | todo   |
-| 4     | Observed-write proposals (`PostToolUse` hook)                         | todo   |
-| 5     | Cross-project recall + audit trail + session-diff                     | todo   |
+| Phase | Scope                                                                | Status   |
+| ----- | -------------------------------------------------------------------- | -------- |
+| 0     | Data layout under `~/.claude/recall/`                                | done     |
+| 1     | File store + FTS5 keyword index + ranked retrieval + CLI             | done     |
+| 2a    | `Embedder` trait + hashed-feature default + hybrid retrieval         | done     |
+| 2b    | Swap in BGE-small (`fastembed-rs`) or HTTP sidecar (`ollama`)        | todo     |
+| 3     | Within-session scratch + compaction survival                          | todo     |
+| 4     | Observed-write proposals (`PostToolUse` hook)                         | todo     |
+| 5     | Cross-project recall + audit trail + session-diff                     | todo     |
 
 ## Install
 
@@ -40,6 +41,7 @@ echo "user dislikes mocks in integration tests" | recall write --kind reflective
 
 recall query "pnpm typescript"
 recall query "mocks" --touch --format json
+recall query "compile project with cargo" --hybrid    # FTS5 + vector cosine
 recall list --subject project:
 recall show <id>
 recall delete <id>
@@ -113,12 +115,29 @@ configurable weights:
 
 ```
 score = w_bm25 · (-bm25)
+      + w_vector · cosine(query_vec, memory_vec)     [hybrid mode only]
       + w_recency · exp(-days_since_last_recall / 30)
       + w_recall_count · tanh(recall_count / 5)
       + w_confidence · confidence
 ```
 
 Defaults are in `recall::retrieval::Weights`.
+
+## Embeddings (Phase 2a)
+
+`recall write` and `recall reindex` compute a 256-dim L2-normalized vector for
+each memory and store it as a BLOB in `memories_meta.embedding`. The default
+embedder is `HashEmbedder` — character n-grams + word features mixed into the
+vector via hashing. It's not a transformer-quality semantic model: it catches
+morphological variation that BM25 alone misses, but it will not match true
+synonyms or paraphrases.
+
+Phase 2b will swap in a real local model (BGE-small via `fastembed-rs`, or
+`ollama`'s `/api/embeddings`) behind the same `Embedder` trait — the storage
+schema (`embedding`, `embedding_id`, `embedding_dim`) is already in place.
+
+`recall query --hybrid` enables vector-augmented retrieval. Without `--hybrid`
+the CLI behaves exactly like Phase 1.
 
 ## Hooks (planned)
 
@@ -150,9 +169,10 @@ cargo test --release
 cargo clippy --release --all-targets -- -D warnings
 ```
 
-12 tests across unit + integration: schema roundtrip, file store
-read/write/walk/delete, index upsert + search + list + touch_recall + count
-+ rebuild, end-to-end CLI flow.
+17 tests across unit + integration: schema roundtrip, file store
+read/write/walk/delete, index upsert + search + vector_search + list +
+touch_recall + count + rebuild, embeddings determinism + cosine ranking +
+pack/unpack roundtrip, end-to-end CLI flow including hybrid retrieval.
 
 ## License
 

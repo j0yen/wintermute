@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result, anyhow};
 use clap::{Parser, Subcommand};
+use recall::embeddings::{Embedder, HashEmbedder};
 use recall::index::Index;
 use recall::memory::{Kind, Memory, Subject};
 use recall::paths;
@@ -65,6 +66,9 @@ enum Command {
         /// If set, also bump `recall_count` and `last_recalled_at` on each hit.
         #[arg(long)]
         touch: bool,
+        /// Use hybrid retrieval (FTS5 + vector cosine). Off by default.
+        #[arg(long)]
+        hybrid: bool,
     },
 
     /// List memories (newest first). Optionally filter by subject prefix.
@@ -115,7 +119,8 @@ fn main() -> Result<()> {
             limit,
             format,
             touch,
-        } => cmd_query(&root, &query, limit, &format, touch),
+            hybrid,
+        } => cmd_query(&root, &query, limit, &format, touch, hybrid),
         Command::List { subject, limit } => cmd_list(&root, subject.as_deref(), limit),
         Command::Show { id } => cmd_show(&root, &id),
         Command::Delete { id } => cmd_delete(&root, &id),
@@ -157,7 +162,9 @@ fn cmd_write(
     }
     mem.front.supersedes = supersedes;
     let path = store.write(&mem)?;
-    idx.upsert(&mem, &path)?;
+    let embedder = HashEmbedder::new();
+    let vec = embedder.embed(&mem.body)?;
+    idx.upsert(&mem, &path, Some((embedder.id(), &vec)))?;
     println!("{}", mem.front.id);
     Ok(())
 }
@@ -181,9 +188,15 @@ fn cmd_query(
     limit: usize,
     format: &str,
     touch: bool,
+    hybrid: bool,
 ) -> Result<()> {
     let idx = Index::open(&paths::index_db(root))?;
-    let hits = retrieval::search(&idx, query, limit)?;
+    let embedder = HashEmbedder::new();
+    let hits = if hybrid {
+        retrieval::hybrid_search(&idx, &embedder, query, limit)?
+    } else {
+        retrieval::search(&idx, query, limit)?
+    };
     if touch {
         for r in &hits {
             idx.touch_recall(&r.hit.id)?;
@@ -200,6 +213,7 @@ fn cmd_query(
                     "path": r.hit.path.to_string_lossy(),
                     "snippet": r.hit.snippet,
                     "score": r.score,
+                    "vector_sim": r.vector_sim,
                     "confidence": r.hit.confidence,
                     "recall_count": r.hit.recall_count,
                 })
@@ -212,8 +226,8 @@ fn cmd_query(
         }
         for r in hits {
             println!(
-                "{}  [{}/{}]  score={:.3} recalls={}",
-                &r.hit.id, r.hit.kind, r.hit.subject, r.score, r.hit.recall_count
+                "{}  [{}/{}]  score={:.3} vec_sim={:.3} recalls={}",
+                &r.hit.id, r.hit.kind, r.hit.subject, r.score, r.vector_sim, r.hit.recall_count
             );
             println!("  {}", r.hit.snippet);
         }
@@ -265,7 +279,8 @@ fn cmd_reindex(root: &std::path::Path) -> Result<()> {
             None
         }
     });
-    let n = idx.rebuild_from(it)?;
-    println!("indexed {n} memories");
+    let embedder = HashEmbedder::new();
+    let n = idx.rebuild_from(it, Some(&embedder))?;
+    println!("indexed {n} memories (with {} embeddings)", embedder.id());
     Ok(())
 }

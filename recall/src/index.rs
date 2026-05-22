@@ -3,6 +3,7 @@
 //! The Markdown files are the source of truth. This index is rebuildable
 //! at any time from `FileStore::iter_all` via `Index::reindex`.
 
+use crate::embeddings;
 use crate::memory::Memory;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
@@ -37,13 +38,31 @@ impl Index {
         Ok(Self { conn })
     }
 
-    /// Insert or replace the index entry for a memory.
-    pub fn upsert(&self, mem: &Memory, path: &Path) -> Result<()> {
+    /// Insert or replace the index entry for a memory. `embedding` is optional;
+    /// pass `Some((id, vec))` to also store an embedding for vector search.
+    pub fn upsert(
+        &self,
+        mem: &Memory,
+        path: &Path,
+        embedding: Option<(&str, &[f32])>,
+    ) -> Result<()> {
         let path_str = path.to_string_lossy().to_string();
         let supersedes_json = if mem.front.supersedes.is_empty() {
             None
         } else {
             Some(serde_json::to_string(&mem.front.supersedes)?)
+        };
+        let (embed_id, embed_blob, embed_dim): (
+            Option<String>,
+            Option<Vec<u8>>,
+            Option<i64>,
+        ) = match embedding {
+            Some((id, v)) => (
+                Some(id.to_string()),
+                Some(embeddings::pack(v)),
+                Some(i64::try_from(v.len()).unwrap_or(0)),
+            ),
+            None => (None, None, None),
         };
 
         // FTS5: delete-then-insert to update.
@@ -60,15 +79,18 @@ impl Index {
         )?;
 
         self.conn.execute(
-            "INSERT INTO memories_meta (id, kind, subject, path, confidence, created_at, last_recalled_at, recall_count, decays_after, supersedes_json)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            "INSERT INTO memories_meta (id, kind, subject, path, confidence, created_at, last_recalled_at, recall_count, decays_after, supersedes_json, embedding, embedding_id, embedding_dim)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
              ON CONFLICT(id) DO UPDATE SET
                kind = excluded.kind,
                subject = excluded.subject,
                path = excluded.path,
                confidence = excluded.confidence,
                decays_after = excluded.decays_after,
-               supersedes_json = excluded.supersedes_json",
+               supersedes_json = excluded.supersedes_json,
+               embedding = excluded.embedding,
+               embedding_id = excluded.embedding_id,
+               embedding_dim = excluded.embedding_dim",
             params![
                 mem.front.id,
                 mem.front.kind.as_str(),
@@ -80,6 +102,9 @@ impl Index {
                 mem.front.recall_count,
                 mem.front.decays_after,
                 supersedes_json,
+                embed_blob,
+                embed_id,
+                embed_dim,
             ],
         )?;
         Ok(())
@@ -174,7 +199,12 @@ impl Index {
     }
 
     /// Wipe and rebuild from a fresh iterator. Used by `recall reindex`.
-    pub fn rebuild_from<I>(&self, iter: I) -> Result<usize>
+    /// If `embedder` is Some, every memory is re-embedded as it's reinserted.
+    pub fn rebuild_from<I>(
+        &self,
+        iter: I,
+        embedder: Option<&dyn crate::embeddings::Embedder>,
+    ) -> Result<usize>
     where
         I: Iterator<Item = (Memory, PathBuf)>,
     {
@@ -183,10 +213,62 @@ impl Index {
         )?;
         let mut n = 0;
         for (mem, path) in iter {
-            self.upsert(&mem, &path)?;
+            let vec_owned = if let Some(e) = embedder {
+                Some(e.embed(&mem.body)?)
+            } else {
+                None
+            };
+            let embed = vec_owned
+                .as_ref()
+                .map(|v| (embedder.unwrap_or(&NullEmbedder).id(), v.as_slice()));
+            self.upsert(&mem, &path, embed)?;
             n += 1;
         }
         Ok(n)
+    }
+
+    /// Brute-force cosine-similarity search over every stored embedding.
+    /// Fine for the few-thousand-memory scale; swap in vss/hnsw later.
+    pub fn vector_search(&self, query_vec: &[f32], limit: usize) -> Result<Vec<(Hit, f32)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, kind, subject, path, confidence, recall_count, last_recalled_at, embedding
+             FROM memories_meta
+             WHERE embedding IS NOT NULL",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let last_str: Option<String> = row.get(6)?;
+            let last = last_str.and_then(|s| {
+                DateTime::parse_from_rfc3339(&s).ok().map(|d| d.with_timezone(&Utc))
+            });
+            let blob: Vec<u8> = row.get(7)?;
+            Ok((
+                Hit {
+                    id: row.get(0)?,
+                    kind: row.get(1)?,
+                    subject: row.get(2)?,
+                    path: PathBuf::from(row.get::<_, String>(3)?),
+                    snippet: String::new(),
+                    bm25: 0.0,
+                    confidence: row.get(4)?,
+                    recall_count: u32::try_from(row.get::<_, i64>(5)?).unwrap_or(0),
+                    last_recalled_at: last,
+                },
+                blob,
+            ))
+        })?;
+        let mut scored: Vec<(Hit, f32)> = Vec::new();
+        for r in rows {
+            let (hit, blob) = r?;
+            let v = crate::embeddings::unpack(&blob);
+            if v.len() != query_vec.len() {
+                continue;
+            }
+            let sim = crate::embeddings::cosine(query_vec, &v);
+            scored.push((hit, sim));
+        }
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        scored.truncate(limit);
+        Ok(scored)
     }
 
     /// Bump `last_recalled_at = now` and increment `recall_count`. Called after a successful query.
@@ -228,13 +310,31 @@ CREATE TABLE IF NOT EXISTS memories_meta (
     last_recalled_at TEXT,
     recall_count INTEGER NOT NULL DEFAULT 0,
     decays_after TEXT,
-    supersedes_json TEXT
+    supersedes_json TEXT,
+    embedding BLOB,
+    embedding_id TEXT,
+    embedding_dim INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_meta_subject ON memories_meta(subject);
 CREATE INDEX IF NOT EXISTS idx_meta_kind    ON memories_meta(kind);
 CREATE INDEX IF NOT EXISTS idx_meta_created ON memories_meta(created_at);
 ";
+
+/// Stub embedder used only so `rebuild_from` can call `.id()` when given a
+/// concrete `Option<&dyn Embedder>` that is `Some`. Never used as a real embedder.
+struct NullEmbedder;
+impl crate::embeddings::Embedder for NullEmbedder {
+    fn dim(&self) -> usize {
+        0
+    }
+    fn id(&self) -> &'static str {
+        "null"
+    }
+    fn embed(&self, _: &str) -> Result<Vec<f32>> {
+        Ok(Vec::new())
+    }
+}
 
 /// FTS5 has a small query mini-language; strip characters that turn user input
 /// into a syntax error. We're lenient: words become an OR of prefix matches.
@@ -273,7 +373,7 @@ mod tests {
         );
         let path = tmp.path().join("mem.md");
         std::fs::write(&path, mem.to_markdown().unwrap()).unwrap();
-        idx.upsert(&mem, &path).unwrap();
+        idx.upsert(&mem, &path, None).unwrap();
         let hits = idx.search("integration auth", 5).unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].id, mem.front.id);
@@ -285,8 +385,8 @@ mod tests {
         let idx = Index::open(&tmp.path().join("idx.sqlite")).unwrap();
         let m_user = Memory::new(Kind::Semantic, Subject::user(), "u");
         let m_proj = Memory::new(Kind::Procedural, Subject::project("recall"), "p");
-        idx.upsert(&m_user, &tmp.path().join("a.md")).unwrap();
-        idx.upsert(&m_proj, &tmp.path().join("b.md")).unwrap();
+        idx.upsert(&m_user, &tmp.path().join("a.md"), None).unwrap();
+        idx.upsert(&m_proj, &tmp.path().join("b.md"), None).unwrap();
         let proj_hits = idx.list(Some("project:"), 10).unwrap();
         assert_eq!(proj_hits.len(), 1);
         assert_eq!(proj_hits[0].subject, "project:recall");
@@ -297,7 +397,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let idx = Index::open(&tmp.path().join("idx.sqlite")).unwrap();
         let mem = Memory::new(Kind::Semantic, Subject::user(), "x");
-        idx.upsert(&mem, &tmp.path().join("a.md")).unwrap();
+        idx.upsert(&mem, &tmp.path().join("a.md"), None).unwrap();
         idx.touch_recall(&mem.front.id).unwrap();
         idx.touch_recall(&mem.front.id).unwrap();
         let hits = idx.list(None, 10).unwrap();
@@ -310,5 +410,33 @@ mod tests {
         assert_eq!(sanitize_fts_query("hello, world!"), "hello* OR world*");
         assert_eq!(sanitize_fts_query(""), "__no_match__");
         assert_eq!(sanitize_fts_query("foo's bar"), "foo* OR s* OR bar*");
+    }
+
+    #[test]
+    fn vector_search_returns_nearest_first() {
+        use crate::embeddings::{Embedder, HashEmbedder};
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = Index::open(&tmp.path().join("idx.sqlite")).unwrap();
+        let e = HashEmbedder::new();
+
+        let m1 = Memory::new(
+            Kind::Procedural,
+            Subject::project("recall"),
+            "build the rust project with cargo build --release",
+        );
+        let m2 = Memory::new(
+            Kind::Semantic,
+            Subject::user(),
+            "user prefers integration tests over mocks for auth code",
+        );
+        let v1 = e.embed(&m1.body).unwrap();
+        let v2 = e.embed(&m2.body).unwrap();
+        idx.upsert(&m1, &tmp.path().join("a.md"), Some((e.id(), &v1))).unwrap();
+        idx.upsert(&m2, &tmp.path().join("b.md"), Some((e.id(), &v2))).unwrap();
+
+        let q = e.embed("build the rust crate with cargo").unwrap();
+        let hits = idx.vector_search(&q, 2).unwrap();
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].0.id, m1.front.id, "near id should rank first");
     }
 }
