@@ -1,0 +1,61 @@
+#!/usr/bin/env bpftrace
+/*
+ * ctrace session tracer.
+ * Usage: bpftrace session.bt <root_pid>
+ *
+ * Tracks all descendants of <root_pid> and emits NDJSON for:
+ *   execve, openat (write modes only), unlinkat, connect.
+ */
+
+BEGIN
+{
+    @track[(uint32)$1] = 1;
+    printf("{\"ts\":%lu,\"type\":\"begin\",\"root_pid\":%d}\n",
+           nsecs / 1000000, $1);
+}
+
+tracepoint:sched:sched_process_fork
+/@track[args->parent_pid] == 1/
+{
+    @track[args->child_pid] = 1;
+}
+
+tracepoint:sched:sched_process_exit
+/@track[pid] == 1/
+{
+    delete(@track, pid);
+}
+
+tracepoint:syscalls:sys_enter_execve
+/@track[pid] == 1/
+{
+    printf("{\"ts\":%lu,\"type\":\"execve\",\"pid\":%d,\"ppid\":%d,\"comm\":\"%s\",\"file\":\"%s\"}\n",
+           nsecs / 1000000, pid, ppid, comm, str(args->filename));
+}
+
+/* openat with any write flag set (O_WRONLY=1, O_RDWR=2) */
+tracepoint:syscalls:sys_enter_openat
+/@track[pid] == 1 && (args->flags & 3) != 0/
+{
+    printf("{\"ts\":%lu,\"type\":\"openat\",\"pid\":%d,\"comm\":\"%s\",\"flags\":%d,\"path\":\"%s\"}\n",
+           nsecs / 1000000, pid, comm, args->flags, str(args->filename));
+}
+
+tracepoint:syscalls:sys_enter_unlinkat
+/@track[pid] == 1/
+{
+    printf("{\"ts\":%lu,\"type\":\"unlinkat\",\"pid\":%d,\"comm\":\"%s\",\"path\":\"%s\"}\n",
+           nsecs / 1000000, pid, comm, str(args->pathname));
+}
+
+tracepoint:syscalls:sys_enter_connect
+/@track[pid] == 1/
+{
+    printf("{\"ts\":%lu,\"type\":\"connect\",\"pid\":%d,\"comm\":\"%s\",\"fd\":%d}\n",
+           nsecs / 1000000, pid, comm, args->fd);
+}
+
+END
+{
+    clear(@track);
+}

@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""wchg — agent-friendly wrapper around watchman.
+
+  wchg watch DIR              tell watchman to watch DIR (idempotent); save "now" clock
+  wchg since DIR              JSON {files, clock} of changes since last `since` (or watch)
+  wchg reset DIR              reset saved clock to "now" (next since returns delta from now)
+  wchg unwatch DIR            stop watching, drop saved clock
+  wchg list                   list watched dirs
+"""
+
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "wchg"
+
+
+def slug(p):
+    return hashlib.sha1(str(p).encode()).hexdigest()[:16]
+
+
+def state_file(p):
+    return ROOT / slug(p) / "state.json"
+
+
+def wj(payload):
+    r = subprocess.run(["watchman", "-j", "--no-pretty"],
+                       input=json.dumps(payload), capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.exit(f"watchman: {r.stderr.strip() or r.stdout.strip()}")
+    out = json.loads(r.stdout)
+    if "error" in out:
+        sys.exit(f"watchman: {out['error']}")
+    return out
+
+
+def cmd_watch(args):
+    dir_ = str(Path(args.dir).resolve())
+    if not Path(dir_).is_dir():
+        sys.exit(f"not a directory: {dir_}")
+    resp = wj(["watch-project", dir_])
+    clock = wj(["clock", resp["watch"]])["clock"]
+    sf = state_file(dir_)
+    sf.parent.mkdir(parents=True, exist_ok=True)
+    sf.write_text(json.dumps({
+        "dir": dir_,
+        "watch": resp["watch"],
+        "relative_path": resp.get("relative_path", ""),
+        "clock": clock,
+    }))
+    print(json.dumps({"watching": dir_, "watch_root": resp["watch"], "clock": clock}))
+
+
+def cmd_since(args):
+    dir_ = str(Path(args.dir).resolve())
+    sf = state_file(dir_)
+    if not sf.exists():
+        sys.exit(f"not watching {dir_}; run: wchg watch {dir_}")
+    st = json.loads(sf.read_text())
+    q = {"since": st["clock"],
+         "fields": ["name", "exists", "type", "new", "size", "mtime"]}
+    if st.get("relative_path"):
+        q["relative_root"] = st["relative_path"]
+    resp = wj(["query", st["watch"], q])
+    st["clock"] = resp["clock"]
+    sf.write_text(json.dumps(st))
+    print(json.dumps({"files": resp.get("files", []), "clock": resp["clock"]}, indent=2))
+
+
+def cmd_reset(args):
+    dir_ = str(Path(args.dir).resolve())
+    sf = state_file(dir_)
+    if not sf.exists():
+        sys.exit(f"not watching {dir_}")
+    st = json.loads(sf.read_text())
+    st["clock"] = wj(["clock", st["watch"]])["clock"]
+    sf.write_text(json.dumps(st))
+    print(json.dumps({"reset_clock": st["clock"]}))
+
+
+def cmd_unwatch(args):
+    dir_ = str(Path(args.dir).resolve())
+    sf = state_file(dir_)
+    if sf.exists():
+        st = json.loads(sf.read_text())
+        try:
+            wj(["watch-del", st["watch"]])
+        except SystemExit:
+            pass
+        shutil.rmtree(sf.parent)
+    print(json.dumps({"unwatched": dir_}))
+
+
+def cmd_list(_args):
+    if not ROOT.exists():
+        return
+    for p in sorted(ROOT.iterdir()):
+        sf = p / "state.json"
+        if not sf.exists():
+            continue
+        try:
+            st = json.loads(sf.read_text())
+        except json.JSONDecodeError:
+            continue
+        print(f"{st['dir']}  clock={st['clock']}")
+
+
+def main():
+    p = argparse.ArgumentParser(prog="wchg")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    for name in ("watch", "since", "reset", "unwatch"):
+        s = sub.add_parser(name)
+        s.add_argument("dir")
+        s.set_defaults(fn=globals()[f"cmd_{name}"])
+    sub.add_parser("list").set_defaults(fn=cmd_list)
+    args = p.parse_args()
+    args.fn(args)
+
+
+if __name__ == "__main__":
+    main()

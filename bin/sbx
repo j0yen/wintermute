@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+"""sbx — userspace sandbox wrapper around bubblewrap (+ optional cgroup limits).
+
+Usage:
+    sbx [opts] -- CMD [ARGS...]
+
+Profiles:
+    ephemeral  (default) host visible read-only; $HOME, /tmp, /run, /var/tmp tmpfs
+    readonly             host visible read-only; no writes anywhere
+    pwd                  like ephemeral, but cwd is bind-mounted writable
+
+Defaults: --no-net, secrets hidden (~/.ssh, ~/.aws, etc.), die-with-parent.
+"""
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+HOME = Path.home()
+
+SECRETS = [
+    HOME / ".ssh",
+    HOME / ".aws",
+    HOME / ".config" / "gcloud",
+    HOME / ".netrc",
+    HOME / ".config" / "Slack",
+    HOME / ".mozilla",
+    HOME / ".config" / "google-chrome",
+    HOME / ".gnupg",
+]
+
+
+def build_bwrap_args(profile, allow_net, hide_secrets, extra_binds, cwd):
+    args = [
+        "bwrap",
+        "--die-with-parent",
+        "--unshare-user",
+        "--unshare-pid",
+        "--unshare-uts",
+        "--unshare-ipc",
+        "--unshare-cgroup-try",
+        "--new-session",
+        "--ro-bind", "/", "/",
+        "--proc", "/proc",
+        "--dev", "/dev",
+    ]
+    if not allow_net:
+        args += ["--unshare-net"]
+
+    if profile in ("ephemeral", "pwd"):
+        args += [
+            "--tmpfs", "/tmp",
+            "--tmpfs", "/run",
+            "--tmpfs", "/var/tmp",
+            "--tmpfs", str(HOME),
+        ]
+
+    if hide_secrets and profile == "readonly":
+        for s in SECRETS:
+            if s.is_dir():
+                args += ["--tmpfs", str(s)]
+            elif s.exists():
+                args += ["--ro-bind-try", "/dev/null", str(s)]
+
+    if profile == "pwd":
+        args += ["--bind", str(cwd), str(cwd)]
+
+    for b in extra_binds:
+        args += ["--bind", b, b]
+
+    if profile == "ephemeral":
+        tmpfs_roots = ("/tmp", "/run", "/var/tmp", str(HOME))
+        cwd_s = str(cwd)
+        if any(cwd_s == r or cwd_s.startswith(r + "/") for r in tmpfs_roots):
+            args += ["--dir", cwd_s]
+
+    args += ["--chdir", str(cwd)]
+    return args
+
+
+def main():
+    p = argparse.ArgumentParser(
+        prog="sbx",
+        description="Run COMMAND in a sandbox (bubblewrap + optional cgroup limits).",
+        epilog="Example: sbx --net -- curl -sS https://example.com",
+    )
+    p.add_argument("--profile", choices=["ephemeral", "readonly", "pwd"], default="ephemeral")
+    net = p.add_mutually_exclusive_group()
+    net.add_argument("--net", dest="net", action="store_true", help="allow network (default: off)")
+    net.add_argument("--no-net", dest="net", action="store_false")
+    p.set_defaults(net=False)
+    p.add_argument("--secrets", action="store_true",
+                   help="don't hide ~/.ssh etc. (default: hide in readonly; tmpfs $HOME hides them in ephemeral/pwd)")
+    p.add_argument("--mem", help="memory limit, e.g. 256M, 1G (uses systemd-run scope)")
+    p.add_argument("--cpu", type=float, help="cpu quota percent, e.g. 50 = half a core")
+    p.add_argument("--timeout", type=int, help="kill after N seconds")
+    p.add_argument("--bind", action="append", default=[], metavar="PATH",
+                   help="extra writable bind mount (can repeat)")
+    p.add_argument("cmd", nargs=argparse.REMAINDER, help="-- COMMAND ARGS...")
+    args = p.parse_args()
+
+    cmd = args.cmd
+    if cmd and cmd[0] == "--":
+        cmd = cmd[1:]
+    if not cmd:
+        p.error("no command. Usage: sbx [opts] -- CMD [ARGS]")
+
+    cwd = Path.cwd()
+    bwrap_args = build_bwrap_args(
+        profile=args.profile,
+        allow_net=args.net,
+        hide_secrets=not args.secrets,
+        extra_binds=args.bind,
+        cwd=cwd,
+    )
+
+    use_scope = bool(args.mem or args.cpu or args.timeout)
+    if use_scope:
+        sd = ["systemd-run", "--user", "--scope", "--quiet", "--collect"]
+        if args.mem:
+            sd += ["-p", f"MemoryMax={args.mem}"]
+        if args.cpu is not None:
+            sd += ["-p", f"CPUQuota={int(args.cpu)}%"]
+        if args.timeout:
+            sd += ["-p", f"RuntimeMaxSec={args.timeout}"]
+        full = sd + bwrap_args + ["--"] + cmd
+    else:
+        full = bwrap_args + ["--"] + cmd
+
+    os.execvp(full[0], full)
+
+
+if __name__ == "__main__":
+    main()

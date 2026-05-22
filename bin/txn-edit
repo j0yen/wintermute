@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""txn-edit — snapshot / commit / rollback for ad-hoc file edits.
+
+  txn-edit snap FILE [FILE...]      take snapshots, print {"id":..., "files":N}
+  txn-edit commit TXN_ID            discard backups
+  txn-edit rollback TXN_ID          restore files from backups
+  txn-edit list
+  txn-edit show TXN_ID
+  txn-edit gc [--older-than DAYS]   prune closed txns older than N days
+"""
+
+import argparse
+import json
+import os
+import shutil
+import sys
+import time
+import uuid
+from pathlib import Path
+
+ROOT = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "txn-edit"
+
+
+def write_atomic(p, text):
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(text)
+    tmp.rename(p)
+
+
+def cmd_snap(args):
+    files = [Path(f).resolve() for f in args.files]
+    txn_id = uuid.uuid4().hex[:8]
+    tdir = ROOT / txn_id
+    bdir = tdir / "backups"
+    bdir.mkdir(parents=True)
+    manifest = {"id": txn_id, "created_at": time.time(), "status": "open", "files": []}
+    for i, src in enumerate(files):
+        entry = {"src": str(src), "existed": src.exists(), "backup": None}
+        if src.exists() and not src.is_dir():
+            backup = bdir / f"{i:04d}"
+            shutil.copy2(src, backup)
+            entry["backup"] = str(backup)
+            try:
+                st = src.stat()
+                entry["mode"] = st.st_mode
+                entry["uid"] = st.st_uid
+                entry["gid"] = st.st_gid
+                entry["mtime"] = st.st_mtime
+                entry["size"] = st.st_size
+            except OSError:
+                pass
+        elif src.is_dir():
+            sys.exit(f"txn-edit: directories not supported: {src}")
+        manifest["files"].append(entry)
+    write_atomic(tdir / "manifest.json", json.dumps(manifest, indent=2))
+    print(json.dumps({"id": txn_id, "files": len(files)}))
+
+
+def load_manifest(txn_id):
+    p = ROOT / txn_id / "manifest.json"
+    if not p.exists():
+        sys.exit(f"unknown txn: {txn_id}")
+    return json.loads(p.read_text())
+
+
+def cmd_commit(args):
+    m = load_manifest(args.id)
+    if m["status"] != "open":
+        sys.exit(f"txn {args.id} already {m['status']}")
+    m["status"] = "committed"
+    m["closed_at"] = time.time()
+    write_atomic(ROOT / args.id / "manifest.json", json.dumps(m, indent=2))
+    bdir = ROOT / args.id / "backups"
+    if bdir.exists():
+        shutil.rmtree(bdir)
+    print(json.dumps({"committed": args.id, "files": len(m["files"])}))
+
+
+def cmd_rollback(args):
+    m = load_manifest(args.id)
+    if m["status"] != "open":
+        sys.exit(f"txn {args.id} already {m['status']}")
+    restored = 0
+    removed = 0
+    for entry in m["files"]:
+        src = Path(entry["src"])
+        if entry["existed"]:
+            backup = Path(entry["backup"]) if entry.get("backup") else None
+            if not backup or not backup.exists():
+                sys.exit(f"backup missing for {src}: {backup}")
+            src.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(backup, src)
+            try:
+                os.chmod(src, entry["mode"])
+                os.utime(src, (entry["mtime"], entry["mtime"]))
+            except (OSError, KeyError):
+                pass
+            restored += 1
+        else:
+            if src.exists():
+                src.unlink()
+                removed += 1
+    m["status"] = "rolled_back"
+    m["closed_at"] = time.time()
+    write_atomic(ROOT / args.id / "manifest.json", json.dumps(m, indent=2))
+    bdir = ROOT / args.id / "backups"
+    if bdir.exists():
+        shutil.rmtree(bdir)
+    print(json.dumps({"rolled_back": args.id, "restored": restored, "removed": removed}))
+
+
+def cmd_list(_args):
+    if not ROOT.exists():
+        return
+    rows = []
+    for p in sorted(ROOT.iterdir()):
+        mp = p / "manifest.json"
+        if not mp.exists():
+            continue
+        try:
+            rows.append(json.loads(mp.read_text()))
+        except json.JSONDecodeError:
+            continue
+    rows.sort(key=lambda m: m.get("created_at", 0), reverse=True)
+    for m in rows:
+        age = time.time() - m["created_at"]
+        print(f"{m['id']:8s}  {m['status']:14s}  {len(m['files'])} files  {age:.1f}s ago")
+
+
+def cmd_gc(args):
+    if not ROOT.exists():
+        return
+    cutoff = time.time() - args.older_than * 86400
+    n = 0
+    for p in sorted(ROOT.iterdir()):
+        mp = p / "manifest.json"
+        if not mp.exists():
+            continue
+        try:
+            m = json.loads(mp.read_text())
+        except json.JSONDecodeError:
+            continue
+        if m.get("status") in ("committed", "rolled_back") and m.get("closed_at", 0) < cutoff:
+            shutil.rmtree(p)
+            n += 1
+    print(f"gc removed {n}")
+
+
+def cmd_show(args):
+    print(json.dumps(load_manifest(args.id), indent=2))
+
+
+def main():
+    p = argparse.ArgumentParser(prog="txn-edit")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    s = sub.add_parser("snap"); s.add_argument("files", nargs="+"); s.set_defaults(fn=cmd_snap)
+    c = sub.add_parser("commit"); c.add_argument("id"); c.set_defaults(fn=cmd_commit)
+    r = sub.add_parser("rollback"); r.add_argument("id"); r.set_defaults(fn=cmd_rollback)
+    sub.add_parser("list").set_defaults(fn=cmd_list)
+    sw = sub.add_parser("show"); sw.add_argument("id"); sw.set_defaults(fn=cmd_show)
+    g = sub.add_parser("gc"); g.add_argument("--older-than", type=float, default=7); g.set_defaults(fn=cmd_gc)
+    ROOT.mkdir(parents=True, exist_ok=True)
+    args = p.parse_args()
+    args.fn(args)
+
+
+if __name__ == "__main__":
+    main()

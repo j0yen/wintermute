@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""tcap — read and drive TUI apps via tmux.
+
+  tcap spawn [--name N] [--size COLSxROWS] -- CMD ARGS    start detached tmux session
+  tcap read [TARGET] [-S SCROLLBACK]                       capture pane contents to stdout
+  tcap send TARGET [--enter] KEY [KEY...]                  send-keys; --enter appends Enter
+  tcap kill TARGET                                         kill-session
+  tcap list                                                summarise sessions
+"""
+
+import argparse
+import json
+import os
+import shlex
+import subprocess
+import sys
+import uuid
+
+
+def tmux(*args, check=True):
+    r = subprocess.run(["tmux", *args], capture_output=True, text=True)
+    if check and r.returncode != 0:
+        sys.exit(f"tmux: {(r.stderr or r.stdout).strip()}")
+    return r.stdout
+
+
+def cmd_spawn(args):
+    cmd = args.cmd or []
+    if cmd and cmd[0] == "--":
+        cmd = cmd[1:]
+    if not cmd:
+        sys.exit("tcap spawn: provide -- CMD ARGS")
+    name = args.name or f"tcap-{uuid.uuid4().hex[:6]}"
+    cols, rows = 200, 50
+    if args.size:
+        try:
+            cols, rows = (int(x) for x in args.size.split("x"))
+        except ValueError:
+            sys.exit("--size COLSxROWS, e.g. 120x40")
+    cmd_str = " ".join(shlex.quote(c) for c in cmd)
+    tmux("new-session", "-d", "-s", name, "-x", str(cols), "-y", str(rows), cmd_str)
+    tmux("set-option", "-t", name, "-w", "remain-on-exit", "on")
+    print(json.dumps({"session": name, "target": f"{name}:0.0", "size": f"{cols}x{rows}"}))
+
+
+def _default_target():
+    out = tmux("list-sessions", "-F", "#{session_name}", check=False).strip()
+    if not out:
+        sys.exit("no tmux sessions; spawn one first")
+    return f"{out.splitlines()[0]}:0.0"
+
+
+def cmd_read(args):
+    target = args.target or _default_target()
+    flags = ["-p", "-t", target]
+    if args.scrollback:
+        flags += ["-S", f"-{args.scrollback}"]
+    sys.stdout.write(tmux("capture-pane", *flags))
+
+
+def cmd_send(args):
+    keys = args.keys
+    if args.enter:
+        keys = list(keys) + ["Enter"]
+    tmux("send-keys", "-t", args.target, *keys)
+
+
+def cmd_kill(args):
+    tmux("kill-session", "-t", args.target)
+    print(json.dumps({"killed": args.target}))
+
+
+def cmd_list(_args):
+    out = tmux("list-sessions",
+               "-F", "#{session_name}\t#{session_windows}w\t#{session_created}\t#{session_attached}",
+               check=False).strip()
+    if not out:
+        print("(no tmux sessions)")
+        return
+    print("SESSION              WINDOWS  CREATED       ATTACHED")
+    for line in out.splitlines():
+        parts = line.split("\t")
+        name, wins, created, att = parts + [""] * (4 - len(parts))
+        print(f"{name:20s} {wins:8s} {created:13s} {att}")
+
+
+def main():
+    p = argparse.ArgumentParser(prog="tcap")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sp = sub.add_parser("spawn")
+    sp.add_argument("--name")
+    sp.add_argument("--size", help="COLSxROWS, e.g. 200x50")
+    sp.add_argument("cmd", nargs=argparse.REMAINDER)
+    sp.set_defaults(fn=cmd_spawn)
+
+    rd = sub.add_parser("read")
+    rd.add_argument("target", nargs="?")
+    rd.add_argument("-S", "--scrollback", type=int, default=0)
+    rd.set_defaults(fn=cmd_read)
+
+    se = sub.add_parser("send")
+    se.add_argument("target")
+    se.add_argument("--enter", action="store_true")
+    se.add_argument("keys", nargs="+")
+    se.set_defaults(fn=cmd_send)
+
+    kl = sub.add_parser("kill"); kl.add_argument("target"); kl.set_defaults(fn=cmd_kill)
+    sub.add_parser("list").set_defaults(fn=cmd_list)
+
+    args = p.parse_args()
+    args.fn(args)
+
+
+if __name__ == "__main__":
+    main()

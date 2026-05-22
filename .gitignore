@@ -1,0 +1,4 @@
+*.bpf.o
+vmlinux.h
+__pycache__/
+*.pyc

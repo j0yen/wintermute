@@ -1,0 +1,301 @@
+#!/usr/bin/env python3
+"""pevent — structured process event tracking via supervised double-fork + pidfd.
+
+Subcommands:
+  run [--id ID] -- CMD...    start CMD in background, log stdio, print {id,pids}
+  wait [-t T] ID             block (pidfd_open + poll) until ID done; print JSON
+  status ID                  print current JSON without blocking
+  list                       summary table of all runs
+  log [--stderr] ID          cat stdout (or --stderr)
+  rm ID                      remove run dir
+  gc [--older-than DAYS]     remove done runs older than N days (default 7)
+"""
+
+import argparse
+import json
+import os
+import select
+import shutil
+import sys
+import time
+import uuid
+from pathlib import Path
+
+ROOT = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "pevent"
+
+
+def rundir(id_):
+    return ROOT / id_
+
+
+def read_meta(id_):
+    return json.loads((rundir(id_) / "meta.json").read_text())
+
+
+def write_meta(id_, meta):
+    p = rundir(id_) / "meta.json"
+    tmp = p.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(meta, indent=2))
+    tmp.rename(p)
+
+
+def pid_alive(pid):
+    try:
+        os.kill(pid, 0)
+        return True
+    except (ProcessLookupError, PermissionError):
+        return False
+
+
+def cmd_run(args):
+    cmd = args.cmd or []
+    if cmd and cmd[0] == "--":
+        cmd = cmd[1:]
+    if not cmd:
+        sys.exit("pevent run: usage: pevent run [--id ID] -- CMD [ARGS...]")
+
+    id_ = args.id or uuid.uuid4().hex[:8]
+    rd = rundir(id_)
+    if rd.exists():
+        sys.exit(f"pevent run: id {id_!r} exists; pevent rm {id_} first.")
+    rd.mkdir(parents=True)
+
+    r_fd, w_fd = os.pipe()
+
+    pid = os.fork()
+    if pid > 0:
+        os.close(w_fd)
+        os.read(r_fd, 64)
+        os.close(r_fd)
+        os.waitpid(pid, 0)
+        meta = read_meta(id_)
+        print(json.dumps({
+            "id": id_,
+            "child_pid": meta["child_pid"],
+            "supervisor_pid": meta["supervisor_pid"],
+        }))
+        return 0
+
+    os.close(r_fd)
+    pid2 = os.fork()
+    if pid2 > 0:
+        os.close(w_fd)
+        os._exit(0)
+
+    os.setsid()
+    os.umask(0o077)
+    null = os.open("/dev/null", os.O_RDWR)
+    os.dup2(null, 0); os.dup2(null, 1); os.dup2(null, 2)
+    if null > 2:
+        os.close(null)
+
+    stdout_log = open(rd / "stdout.log", "wb")
+    stderr_log = open(rd / "stderr.log", "wb")
+
+    child_pid = os.fork()
+    if child_pid == 0:
+        os.dup2(stdout_log.fileno(), 1)
+        os.dup2(stderr_log.fileno(), 2)
+        stdout_log.close(); stderr_log.close()
+        try:
+            os.execvp(cmd[0], cmd)
+        except FileNotFoundError:
+            os._exit(127)
+        except PermissionError:
+            os._exit(126)
+        except Exception:
+            os._exit(125)
+
+    stdout_log.close(); stderr_log.close()
+
+    started_at = time.time()
+    meta = {
+        "id": id_,
+        "cmd": cmd,
+        "supervisor_pid": os.getpid(),
+        "child_pid": child_pid,
+        "started_at": started_at,
+        "status": "running",
+    }
+    write_meta(id_, meta)
+
+    os.write(w_fd, f"{os.getpid()}\n".encode())
+    os.close(w_fd)
+
+    try:
+        _, status, rusage = os.wait4(child_pid, 0)
+    except ChildProcessError:
+        os._exit(0)
+
+    ended_at = time.time()
+    if os.WIFEXITED(status):
+        meta["exit_code"] = os.WEXITSTATUS(status)
+        meta["signal"] = None
+        meta["exit_reason"] = "exited"
+    elif os.WIFSIGNALED(status):
+        meta["exit_code"] = None
+        meta["signal"] = os.WTERMSIG(status)
+        meta["exit_reason"] = "signaled"
+
+    meta.update({
+        "status": "done",
+        "ended_at": ended_at,
+        "runtime_s": round(ended_at - started_at, 4),
+        "peak_rss_kb": rusage.ru_maxrss,
+        "user_cpu_s": round(rusage.ru_utime, 4),
+        "sys_cpu_s": round(rusage.ru_stime, 4),
+    })
+    write_meta(id_, meta)
+    os._exit(0)
+
+
+def cmd_wait(args):
+    if not rundir(args.id).exists():
+        sys.exit(f"unknown id: {args.id}")
+    meta = read_meta(args.id)
+    if meta["status"] == "done":
+        print(json.dumps(meta, indent=2))
+        return 0 if meta.get("exit_code") == 0 else 1
+
+    sup_pid = meta["supervisor_pid"]
+    try:
+        pidfd = os.pidfd_open(sup_pid)
+    except (ProcessLookupError, PermissionError, OSError):
+        time.sleep(0.05)
+        meta = read_meta(args.id)
+        print(json.dumps(meta, indent=2))
+        return 0 if meta.get("exit_code") == 0 else 1
+
+    poller = select.poll()
+    poller.register(pidfd, select.POLLIN)
+    timeout_ms = int(args.timeout * 1000) if args.timeout else None
+    events = poller.poll(timeout_ms)
+    os.close(pidfd)
+    if not events:
+        meta = read_meta(args.id)
+        meta["timed_out"] = True
+        print(json.dumps(meta, indent=2))
+        return 2
+
+    # Supervisor exited; meta.json is written before _exit but allow tiny grace
+    for _ in range(40):
+        meta = read_meta(args.id)
+        if meta["status"] == "done":
+            break
+        time.sleep(0.025)
+    print(json.dumps(meta, indent=2))
+    return 0 if meta.get("exit_code") == 0 else 1
+
+
+def cmd_status(args):
+    if not rundir(args.id).exists():
+        sys.exit(f"unknown id: {args.id}")
+    meta = read_meta(args.id)
+    if meta["status"] == "running" and not pid_alive(meta["supervisor_pid"]):
+        meta["status"] = "lost"
+    print(json.dumps(meta, indent=2))
+
+
+def cmd_list(_args):
+    if not ROOT.exists():
+        return 0
+    rows = []
+    for p in sorted(ROOT.iterdir()):
+        if not p.is_dir():
+            continue
+        try:
+            rows.append(json.loads((p / "meta.json").read_text()))
+        except (FileNotFoundError, json.JSONDecodeError):
+            continue
+    rows.sort(key=lambda m: m.get("started_at", 0), reverse=True)
+    for m in rows:
+        cmd_str = " ".join(m.get("cmd", []))
+        if len(cmd_str) > 60:
+            cmd_str = cmd_str[:57] + "..."
+        st = m.get("status", "?")
+        if st == "done":
+            if m.get("signal") is not None:
+                st = f"sig{m['signal']}"
+            else:
+                st = f"exit{m.get('exit_code')}"
+        rt = m.get("runtime_s") or (time.time() - m.get("started_at", time.time()))
+        print(f"{m.get('id',''):10s}  {st:10s}  {rt:8.2f}s  {cmd_str}")
+    return 0
+
+
+def cmd_log(args):
+    rd = rundir(args.id)
+    if not rd.exists():
+        sys.exit(f"unknown id: {args.id}")
+    f = rd / ("stderr.log" if args.stderr else "stdout.log")
+    sys.stdout.buffer.write(f.read_bytes())
+    return 0
+
+
+def cmd_rm(args):
+    rd = rundir(args.id)
+    if not rd.exists():
+        sys.exit(f"unknown id: {args.id}")
+    shutil.rmtree(rd)
+    return 0
+
+
+def cmd_gc(args):
+    if not ROOT.exists():
+        return 0
+    cutoff = time.time() - args.older_than * 86400
+    n = 0
+    for p in sorted(ROOT.iterdir()):
+        if not p.is_dir():
+            continue
+        try:
+            m = json.loads((p / "meta.json").read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            continue
+        if m.get("status") == "done" and m.get("ended_at", 0) < cutoff:
+            shutil.rmtree(p)
+            n += 1
+    print(f"removed {n} runs older than {args.older_than}d")
+    return 0
+
+
+def main():
+    p = argparse.ArgumentParser(prog="pevent")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    r = sub.add_parser("run")
+    r.add_argument("--id")
+    r.add_argument("cmd", nargs=argparse.REMAINDER)
+    r.set_defaults(fn=cmd_run)
+
+    w = sub.add_parser("wait")
+    w.add_argument("-t", "--timeout", type=float)
+    w.add_argument("id")
+    w.set_defaults(fn=cmd_wait)
+
+    s = sub.add_parser("status")
+    s.add_argument("id")
+    s.set_defaults(fn=cmd_status)
+
+    sub.add_parser("list").set_defaults(fn=cmd_list)
+
+    lg = sub.add_parser("log")
+    lg.add_argument("--stderr", action="store_true")
+    lg.add_argument("id")
+    lg.set_defaults(fn=cmd_log)
+
+    rm = sub.add_parser("rm")
+    rm.add_argument("id")
+    rm.set_defaults(fn=cmd_rm)
+
+    gc = sub.add_parser("gc")
+    gc.add_argument("--older-than", type=float, default=7)
+    gc.set_defaults(fn=cmd_gc)
+
+    ROOT.mkdir(parents=True, exist_ok=True)
+    args = p.parse_args()
+    sys.exit(args.fn(args) or 0)
+
+
+if __name__ == "__main__":
+    main()

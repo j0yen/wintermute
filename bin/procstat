@@ -1,0 +1,208 @@
+#!/usr/bin/env python3
+"""procstat — structured per-process telemetry from /proc + cgroups v2.
+
+  procstat snap PID [PID...] [--fds] [--threads]      # one-shot JSON snapshot
+  procstat self [--parent] [--fds] [--threads]        # snapshot self (or parent shell)
+  procstat watch PID [PID...] [--interval S] [-n N]   # repeated NDJSON samples
+"""
+
+import argparse
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+HZ = os.sysconf(os.sysconf_names["SC_CLK_TCK"])
+_BOOT = None
+
+
+def boot_time():
+    global _BOOT
+    if _BOOT is None:
+        for line in Path("/proc/stat").read_text().splitlines():
+            if line.startswith("btime "):
+                _BOOT = int(line.split()[1])
+                break
+    return _BOOT
+
+
+def kv(text):
+    out = {}
+    for line in text.splitlines():
+        k, _, v = line.partition(":")
+        out[k.strip()] = v.strip()
+    return out
+
+
+def kb_to_b(s):
+    if not s:
+        return None
+    parts = s.split()
+    if not parts:
+        return None
+    try:
+        return int(parts[0]) * 1024
+    except ValueError:
+        return None
+
+
+def snap_pid(pid, fds=False, threads=False):
+    base = Path(f"/proc/{pid}")
+    out = {"pid": pid}
+    try:
+        status = kv((base / "status").read_text())
+    except (FileNotFoundError, ProcessLookupError):
+        out["error"] = "no such process"
+        return out
+    except PermissionError as e:
+        out["error"] = f"permission denied: {e}"
+        return out
+
+    out.update({
+        "comm": status.get("Name"),
+        "state": (status.get("State") or "").split()[0] or None,
+        "ppid": int(status["PPid"]) if "PPid" in status else None,
+        "tgid": int(status.get("Tgid", pid)),
+        "uid": int(status["Uid"].split()[0]) if "Uid" in status else None,
+        "gid": int(status["Gid"].split()[0]) if "Gid" in status else None,
+        "threads_count": int(status.get("Threads", 0)),
+        "vm_peak_bytes": kb_to_b(status.get("VmPeak")),
+        "vm_rss_bytes": kb_to_b(status.get("VmRSS")),
+        "vm_swap_bytes": kb_to_b(status.get("VmSwap")),
+    })
+
+    try:
+        cmdline = (base / "cmdline").read_bytes().decode("utf-8", errors="replace")
+        out["cmdline"] = cmdline.rstrip("\0").split("\0") if cmdline else []
+    except Exception:
+        pass
+
+    try:
+        raw = (base / "stat").read_text()
+        head, rest = raw.split("(", 1)
+        ce = rest.rindex(")")
+        f = rest[ce + 2:].split()
+        out["cpu_user_s"] = round(int(f[11]) / HZ, 4)
+        out["cpu_sys_s"] = round(int(f[12]) / HZ, 4)
+        started = boot_time() + int(f[19]) / HZ
+        out["started_at"] = round(started, 4)
+        out["uptime_s"] = round(time.time() - started, 4)
+    except Exception:
+        pass
+
+    try:
+        i = kv((base / "io").read_text())
+        out["io_read_bytes"] = int(i.get("read_bytes", 0))
+        out["io_write_bytes"] = int(i.get("write_bytes", 0))
+        out["io_rchar"] = int(i.get("rchar", 0))
+        out["io_wchar"] = int(i.get("wchar", 0))
+    except (FileNotFoundError, PermissionError):
+        pass
+
+    try:
+        s = kv((base / "smaps_rollup").read_text())
+        out["pss_bytes"] = kb_to_b(s.get("Pss"))
+        out["uss_bytes"] = kb_to_b(s.get("Private_Clean")) or 0
+        priv_dirty = kb_to_b(s.get("Private_Dirty")) or 0
+        if out.get("uss_bytes") is not None:
+            out["uss_bytes"] = (out["uss_bytes"] or 0) + priv_dirty
+    except (FileNotFoundError, PermissionError):
+        pass
+
+    try:
+        cg = (base / "cgroup").read_text().strip()
+        if cg.startswith("0::"):
+            cgrel = cg[3:].lstrip("/")
+            out["cgroup"] = "/" + cgrel
+            cg_path = Path("/sys/fs/cgroup") / cgrel
+            for key, fname in [("cgroup_memory_max", "memory.max"),
+                                ("cgroup_memory_current", "memory.current"),
+                                ("cgroup_cpu_max", "cpu.max")]:
+                try:
+                    out[key] = (cg_path / fname).read_text().strip()
+                except (FileNotFoundError, PermissionError):
+                    pass
+    except Exception:
+        pass
+
+    try:
+        fd_dir = base / "fd"
+        fd_entries = list(fd_dir.iterdir())
+        out["num_fds"] = len(fd_entries)
+        if fds:
+            out["fds"] = []
+            for f in fd_entries:
+                try:
+                    out["fds"].append({"fd": int(f.name), "target": os.readlink(f)})
+                except OSError:
+                    continue
+            out["fds"].sort(key=lambda x: x["fd"])
+    except (FileNotFoundError, PermissionError):
+        pass
+
+    if threads:
+        try:
+            out["thread_tids"] = sorted(int(t.name) for t in (base / "task").iterdir())
+        except Exception:
+            pass
+
+    return out
+
+
+def cmd_snap(args):
+    if len(args.pids) == 1:
+        result = snap_pid(args.pids[0], fds=args.fds, threads=args.threads)
+    else:
+        result = [snap_pid(p, fds=args.fds, threads=args.threads) for p in args.pids]
+    print(json.dumps(result, indent=2))
+
+
+def cmd_self(args):
+    pid = os.getppid() if args.parent else os.getpid()
+    print(json.dumps(snap_pid(pid, fds=args.fds, threads=args.threads), indent=2))
+
+
+def cmd_watch(args):
+    n = 0
+    while True:
+        for pid in args.pids:
+            sys.stdout.write(json.dumps(snap_pid(pid)) + "\n")
+        sys.stdout.flush()
+        n += 1
+        if args.count and n >= args.count:
+            return
+        try:
+            time.sleep(args.interval)
+        except KeyboardInterrupt:
+            return
+
+
+def main():
+    p = argparse.ArgumentParser(prog="procstat")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("snap")
+    s.add_argument("pids", nargs="+", type=int)
+    s.add_argument("--fds", action="store_true")
+    s.add_argument("--threads", action="store_true")
+    s.set_defaults(fn=cmd_snap)
+
+    sf = sub.add_parser("self")
+    sf.add_argument("--parent", action="store_true")
+    sf.add_argument("--fds", action="store_true")
+    sf.add_argument("--threads", action="store_true")
+    sf.set_defaults(fn=cmd_self)
+
+    w = sub.add_parser("watch")
+    w.add_argument("pids", nargs="+", type=int)
+    w.add_argument("--interval", type=float, default=1.0)
+    w.add_argument("-n", "--count", type=int, default=0)
+    w.set_defaults(fn=cmd_watch)
+
+    args = p.parse_args()
+    args.fn(args)
+
+
+if __name__ == "__main__":
+    main()
