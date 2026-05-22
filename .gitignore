@@ -2,3 +2,7 @@
 vmlinux.h
 __pycache__/
 *.pyc
+
+# recall (Rust)
+recall/target/
+recall/Cargo.lock

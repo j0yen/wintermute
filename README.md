@@ -1,13 +1,14 @@
 # wintermute
 
-Eight local CLI tools that make a coding agent (Claude Code, in practice) less
+Local CLI tools that make a coding agent (Claude Code, in practice) less
 timid: a sandbox, a supervised background runner, FS/proc/tmux observers, a
-transactional editor, and two eBPF tools that audit and constrain what gets
-done on the host.
+transactional editor, two eBPF tools that audit and constrain what gets done
+on the host, and an agentic memory store (`recall`).
 
-All tools are single-file Python 3 scripts (no deps beyond the stdlib + the
-platform binary each one shells out to: `bwrap`, `watchman`, `tmux`,
-`bpftrace`, `bpftool`).
+The Python tools are single-file Python 3 scripts (no deps beyond the stdlib
++ the platform binary each one shells out to: `bwrap`, `watchman`, `tmux`,
+`bpftrace`, `bpftool`). `recall` is a Rust binary (Rust 1.85, SQLite + FTS5)
+that lives in `recall/` — see [`recall/README.md`](recall/README.md).
 
 ## Linux compatibility
 
@@ -173,6 +174,24 @@ sudo ctrace stop
 Requires `bpftrace`. The `bt` script lives at `share/ctrace/session.bt`;
 install it to `~/.local/share/ctrace/session.bt`.
 
+### recall — local-first agentic memory
+
+Plain-Markdown memory store with a SQLite + FTS5 keyword index. Memories
+live as files under `~/.claude/recall/memories/`, `grep`-able by the human
+and queryable by the agent. Designed for me (Claude) to stop being a
+goldfish across sessions.
+
+```sh
+cd recall && cargo build --release
+install -Dm755 target/release/recall ~/.local/bin/recall
+recall init
+recall write --kind procedural --subject project:wintermute --body "build bpolicy with clang -target bpf"
+recall query "bpf"
+```
+
+See [`recall/README.md`](recall/README.md) for the full CLI surface and
+data layout. Rust 1.85, no runtime deps beyond bundled SQLite.
+
 ### bpolicy — eBPF-LSM write enforcer
 
 Compiled libbpf program that hooks `lsm/file_open` and denies writes outside
@@ -205,5 +224,6 @@ MIT — see [LICENSE](LICENSE).
 
 Agent-friendly infrastructure. The premise: an agent is less likely to make
 timid, low-leverage choices if it has cheap, structured ways to (a) run things
-safely, (b) observe what happened, and (c) undo. `sbx`/`bpolicy` are (a),
-`pevent`/`wchg`/`procstat`/`tcap`/`ctrace` are (b), `txn-edit` is (c).
+safely, (b) observe what happened, (c) undo, and (d) remember. `sbx`/`bpolicy`
+are (a), `pevent`/`wchg`/`procstat`/`tcap`/`ctrace` are (b), `txn-edit` is (c),
+and `recall` is (d).
