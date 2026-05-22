@@ -139,28 +139,44 @@ schema (`embedding`, `embedding_id`, `embedding_dim`) is already in place.
 `recall query --hybrid` enables vector-augmented retrieval. Without `--hybrid`
 the CLI behaves exactly like Phase 1.
 
-## Hooks (planned)
+## Hooks
 
-Phase 4 will integrate via Claude Code `settings.json` hooks:
+| Hook           | Status   | Behavior                                                                 |
+| -------------- | -------- | ------------------------------------------------------------------------ |
+| `SessionStart` | shipped  | [`hooks/session-start.sh`](hooks/session-start.sh) emits user + project + self memories at session start |
+| `PostToolUse`  | planned  | observe corrections and propose new memories                              |
+| `Stop`         | planned  | promote `session/<id>.md` to long-term memory; emit a session diff       |
 
-| Hook           | Behavior                                                                 |
-| -------------- | ------------------------------------------------------------------------ |
-| `SessionStart` | `recall query "<cwd + recent files>" --limit 3 --touch --format json`    |
-| `PostToolUse`  | observe corrections and propose new memories                              |
-| `Stop`         | promote `session/<id>.md` to long-term memory; emit a session diff       |
+### Wire the SessionStart hook into Claude Code
 
-For now you can wire `SessionStart` manually:
+```sh
+install -Dm755 hooks/session-start.sh ~/.claude/scripts/recall-session-start.sh
+```
+
+Then add this entry to the `SessionStart` hook list in `~/.claude/settings.json`:
 
 ```jsonc
-// ~/.claude/settings.json
 {
   "hooks": {
     "SessionStart": [
-      "recall query \"$CLAUDE_USER_PROMPT\" --limit 3 --touch --format json"
+      {
+        "matcher": "*",
+        "hooks": [
+          /* …existing hooks… */
+          {
+            "type": "command",
+            "command": "/home/jsy/.claude/scripts/recall-session-start.sh"
+          }
+        ]
+      }
     ]
   }
 }
 ```
+
+The script honors `$CLAUDE_PROJECT_DIR` (falls back to `$PWD`) for the
+project scope and `$RECALL_BIN` / `$RECALL_SESSION_LIMIT` overrides.
+It exits silently when the memory store is empty.
 
 ## Testing
 
