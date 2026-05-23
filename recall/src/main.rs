@@ -1,6 +1,7 @@
 //! recall — local-first agentic memory CLI.
 
 use anyhow::{Context, Result, anyhow};
+use chrono::{DateTime, Duration, Utc};
 use clap::{Parser, Subcommand};
 use recall::embeddings::{Embedder, HashEmbedder};
 use recall::index::Index;
@@ -69,6 +70,24 @@ enum Command {
         /// Use hybrid retrieval (FTS5 + vector cosine). Off by default.
         #[arg(long)]
         hybrid: bool,
+        /// Filter to memories whose subject starts with this prefix.
+        #[arg(long)]
+        subject: Option<String>,
+        /// Filter to memories of this kind.
+        #[arg(long)]
+        kind: Option<String>,
+        /// Filter to memories created within this duration (e.g. `30d`, `7d`, `12h`).
+        #[arg(long)]
+        since: Option<String>,
+        /// Filter to memories with confidence >= this threshold.
+        #[arg(long)]
+        min_confidence: Option<f64>,
+        /// Include superseded memories in results (default: included; reserved for future suppression).
+        #[arg(long, default_value_t = false)]
+        include_superseded: bool,
+        /// Include decayed memories in results (default: included; reserved for future suppression).
+        #[arg(long, default_value_t = false)]
+        include_decayed: bool,
     },
 
     /// List memories (newest first). Optionally filter by subject prefix.
@@ -76,6 +95,15 @@ enum Command {
         /// Subject prefix, e.g. `project:` or `user`.
         #[arg(long)]
         subject: Option<String>,
+        /// Filter to memories of this kind.
+        #[arg(long)]
+        kind: Option<String>,
+        /// Filter to memories created within this duration.
+        #[arg(long)]
+        since: Option<String>,
+        /// Output format: json | text
+        #[arg(long, default_value = "text")]
+        format: String,
         #[arg(long, default_value_t = 20)]
         limit: usize,
     },
@@ -83,6 +111,21 @@ enum Command {
     /// Show a single memory's Markdown content by id.
     Show {
         id: String,
+        /// Output format: json | text (default text emits raw Markdown).
+        #[arg(long, default_value = "text")]
+        format: String,
+    },
+
+    /// Find memories whose stored embedding is closest to <id>'s embedding.
+    Similar {
+        /// The reference memory id.
+        id: String,
+        /// Max results.
+        #[arg(long, default_value_t = 5)]
+        limit: usize,
+        /// Output format: json | text
+        #[arg(long, default_value = "text")]
+        format: String,
     },
 
     /// Delete a memory by id (removes the file and the index row).
@@ -120,15 +163,44 @@ fn main() -> Result<()> {
             format,
             touch,
             hybrid,
-        } => cmd_query(&root, &query, limit, &format, touch, hybrid),
-        Command::List { subject, limit } => cmd_list(&root, subject.as_deref(), limit),
-        Command::Show { id } => cmd_show(&root, &id),
+            subject,
+            kind,
+            since,
+            min_confidence,
+            include_superseded,
+            include_decayed,
+        } => cmd_query(
+            &root, &query, limit, &format, touch, hybrid,
+            subject.as_deref(), kind.as_deref(), since.as_deref(),
+            min_confidence, include_superseded, include_decayed,
+        ),
+        Command::List { subject, kind, since, format, limit } => {
+            cmd_list(&root, subject.as_deref(), kind.as_deref(), since.as_deref(), &format, limit)
+        }
+        Command::Show { id, format } => cmd_show(&root, &id, &format),
         Command::Delete { id } => cmd_delete(&root, &id),
         Command::Reindex => cmd_reindex(&root),
+        Command::Similar { id, limit, format } => cmd_similar(&root, &id, limit, &format),
         Command::Where => {
             println!("{}", root.display());
             Ok(())
         }
+    }
+}
+
+/// Parse a duration like `30d` / `7d` / `12h` / `30m`.
+fn parse_since(s: &str) -> Result<Duration> {
+    let t = s.trim();
+    if t.len() < 2 {
+        return Err(anyhow!("bad duration: {s}"));
+    }
+    let (num_part, suffix) = t.split_at(t.len() - 1);
+    let n: i64 = num_part.parse().map_err(|_| anyhow!("bad duration number in: {s}"))?;
+    match suffix {
+        "d" => Ok(Duration::days(n)),
+        "h" => Ok(Duration::hours(n)),
+        "m" => Ok(Duration::minutes(n)),
+        _ => Err(anyhow!("unknown duration suffix in: {s} (use d|h|m)")),
     }
 }
 
@@ -182,6 +254,7 @@ fn read_body(body: Option<String>, file: Option<PathBuf>) -> Result<String> {
     Ok(buf)
 }
 
+#[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
 fn cmd_query(
     root: &std::path::Path,
     query: &str,
@@ -189,14 +262,50 @@ fn cmd_query(
     format: &str,
     touch: bool,
     hybrid: bool,
+    subject: Option<&str>,
+    kind: Option<&str>,
+    since: Option<&str>,
+    min_confidence: Option<f64>,
+    _include_superseded: bool,
+    _include_decayed: bool,
 ) -> Result<()> {
     let idx = Index::open(&paths::index_db(root))?;
     let embedder = HashEmbedder::new();
-    let hits = if hybrid {
-        retrieval::hybrid_search(&idx, &embedder, query, limit)?
+    // Fetch more than `limit` to leave room for post-filter without short-changing the result.
+    let inner_limit = if subject.is_some() || kind.is_some() || since.is_some() || min_confidence.is_some() {
+        limit.saturating_mul(4).max(20)
     } else {
-        retrieval::search(&idx, query, limit)?
+        limit
     };
+    let mut hits = if hybrid {
+        retrieval::hybrid_search(&idx, &embedder, query, inner_limit)?
+    } else {
+        retrieval::search(&idx, query, inner_limit)?
+    };
+    // Post-filter on the fields already in Hit; for --since we look up created_at via store.
+    let store = if since.is_some() { Some(FileStore::open(root.to_path_buf())?) } else { None };
+    let cutoff: Option<DateTime<Utc>> = match since {
+        Some(s) => Some(Utc::now() - parse_since(s)?),
+        None => None,
+    };
+    hits.retain(|r| {
+        if let Some(p) = subject {
+            if !r.hit.subject.starts_with(p) { return false; }
+        }
+        if let Some(k) = kind {
+            if r.hit.kind != k { return false; }
+        }
+        if let Some(m) = min_confidence {
+            if r.hit.confidence < m { return false; }
+        }
+        if let (Some(c), Some(st)) = (cutoff, &store) {
+            if let Ok((mem, _)) = st.find_by_id(&r.hit.id) {
+                if mem.front.created_at < c { return false; }
+            }
+        }
+        true
+    });
+    hits.truncate(limit);
     if touch {
         for r in &hits {
             idx.touch_recall(&r.hit.id)?;
@@ -238,10 +347,50 @@ fn cmd_query(
 fn cmd_list(
     root: &std::path::Path,
     subject: Option<&str>,
+    kind: Option<&str>,
+    since: Option<&str>,
+    format: &str,
     limit: usize,
 ) -> Result<()> {
     let idx = Index::open(&paths::index_db(root))?;
-    let hits = idx.list(subject, limit)?;
+    // Fetch more than limit when filtering, so we don't short-change after filter.
+    let inner_limit = if kind.is_some() || since.is_some() { limit.saturating_mul(4).max(40) } else { limit };
+    let mut hits = idx.list(subject, inner_limit)?;
+    let store = if since.is_some() { Some(FileStore::open(root.to_path_buf())?) } else { None };
+    let cutoff: Option<DateTime<Utc>> = match since {
+        Some(s) => Some(Utc::now() - parse_since(s)?),
+        None => None,
+    };
+    hits.retain(|h| {
+        if let Some(k) = kind {
+            if h.kind != k { return false; }
+        }
+        if let (Some(c), Some(st)) = (cutoff, &store) {
+            if let Ok((mem, _)) = st.find_by_id(&h.id) {
+                if mem.front.created_at < c { return false; }
+            }
+        }
+        true
+    });
+    hits.truncate(limit);
+    if format == "json" {
+        let arr: Vec<serde_json::Value> = hits
+            .iter()
+            .map(|h| {
+                serde_json::json!({
+                    "id": h.id,
+                    "kind": h.kind,
+                    "subject": h.subject,
+                    "path": h.path.to_string_lossy(),
+                    "confidence": h.confidence,
+                    "recall_count": h.recall_count,
+                    "last_recalled_at": h.last_recalled_at.map(|t| t.to_rfc3339()),
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&arr)?);
+        return Ok(());
+    }
     if hits.is_empty() {
         println!("(no memories)");
     }
@@ -251,11 +400,58 @@ fn cmd_list(
     Ok(())
 }
 
-fn cmd_show(root: &std::path::Path, id: &str) -> Result<()> {
+fn cmd_show(root: &std::path::Path, id: &str, format: &str) -> Result<()> {
     let store = FileStore::open(root.to_path_buf())?;
     let (mem, path) = store.find_by_id(id)?;
+    if format == "json" {
+        let fm_yaml = serde_yaml::to_string(&mem.front)?;
+        let fm_value: serde_yaml::Value = serde_yaml::from_str(&fm_yaml)?;
+        let obj = serde_json::json!({
+            "path": path.to_string_lossy(),
+            "frontmatter": serde_json::to_value(&fm_value)?,
+            "body": mem.body,
+        });
+        println!("{}", serde_json::to_string_pretty(&obj)?);
+        return Ok(());
+    }
     println!("# {}", path.display());
     println!("{}", mem.to_markdown()?);
+    Ok(())
+}
+
+fn cmd_similar(root: &std::path::Path, id: &str, limit: usize, format: &str) -> Result<()> {
+    let idx = Index::open(&paths::index_db(root))?;
+    let vec = idx
+        .get_embedding(id)?
+        .ok_or_else(|| anyhow!("memory {id} has no stored embedding"))?;
+    let mut hits = idx.vector_search(&vec, limit + 1)?;
+    // Drop self (perfect-match same id).
+    hits.retain(|(h, _)| h.id != id);
+    hits.truncate(limit);
+    if format == "json" {
+        let arr: Vec<serde_json::Value> = hits
+            .iter()
+            .map(|(h, sim)| {
+                serde_json::json!({
+                    "id": h.id,
+                    "kind": h.kind,
+                    "subject": h.subject,
+                    "path": h.path.to_string_lossy(),
+                    "vector_sim": sim,
+                    "confidence": h.confidence,
+                    "recall_count": h.recall_count,
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&arr)?);
+    } else {
+        if hits.is_empty() {
+            println!("(no similar memories)");
+        }
+        for (h, sim) in hits {
+            println!("{}  [{}/{}]  sim={:.3}", h.id, h.kind, h.subject, sim);
+        }
+    }
     Ok(())
 }
 

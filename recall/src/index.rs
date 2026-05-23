@@ -290,6 +290,21 @@ impl Index {
             .query_row("SELECT COUNT(*) FROM memories_meta", [], |row| row.get(0))?;
         Ok(usize::try_from(n).unwrap_or(0))
     }
+
+    /// Fetch the stored embedding for a memory id, if any.
+    pub fn get_embedding(&self, id: &str) -> Result<Option<Vec<f32>>> {
+        let result: rusqlite::Result<Option<Vec<u8>>> = self.conn.query_row(
+            "SELECT embedding FROM memories_meta WHERE id = ?1",
+            params![id],
+            |row| row.get::<_, Option<Vec<u8>>>(0),
+        );
+        match result {
+            Ok(Some(blob)) => Ok(Some(crate::embeddings::unpack(&blob))),
+            Ok(None) => Ok(None),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
 }
 
 const SCHEMA: &str = r"
