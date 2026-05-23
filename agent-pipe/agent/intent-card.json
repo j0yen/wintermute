@@ -1,0 +1,149 @@
+{
+  "schema": "autobuilder.intent_card.v1",
+  "prd_source": "/home/jsy/projects/autobuilder/PRD-agent-pipe.md",
+  "intent_slug": "agent-pipe",
+  "root_motivation": "Today the eight wintermute tools and recall compose only through shell + jq, which loses the record structure at each pipe boundary: a `recall query` JSON-with-evidence flattened to ids becomes a re-query nightmare. Apipe is a shared NDJSON record schema plus a thin streaming runtime so each stage of a pipeline enriches records rather than reducing them to bytes. Phase 0 (this slice) ships the runtime binary with `pass`/`top`/`sort`/`pretty`/`schema`/`filter`/`to-paths`/`from-paths` and the shared schema (recall_hit, transcript_turn, file_event); adapter-mode changes to existing tools land in a separate slice.",
+  "user_persona": "jsy and Claude sessions on this laptop, composing tool output in shell pipelines. Typical invocation: `recall query 'foo' --format apipe | apipe top 5 | apipe pretty`. Consumers: humans reading the pretty table; downstream tools reading NDJSON; jq-style shell scripts via `apipe to-paths`.",
+  "unfakeable_metric": {
+    "name": "acceptance_tests_passing_count",
+    "lower_is_better": false,
+    "harness_command": "bash scripts/run-metrics.sh && jq -r '.scalars.acceptance_tests_passing_count' target/autobuilder/metrics.json",
+    "target": null
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "level": "MUST",
+      "description": "`apipe pass` reads NDJSON from stdin, writes byte-identical NDJSON to stdout. Identity filter; useful for type-checking a pipeline. Empty input → empty output, exit 0.",
+      "test": "tests/acceptance_ac1.rs"
+    },
+    {
+      "id": "AC2",
+      "level": "MUST",
+      "description": "Every record must have required fields `kind`, `source`, `id`, `ts`. `apipe pass` (and every other subcommand) validates each input line; missing required fields → write the original line + an error message to stderr with the 1-indexed line number, drop the record, continue processing. Exit 0 if any records passed through; exit 1 if no input was valid.",
+      "test": "tests/acceptance_ac2.rs"
+    },
+    {
+      "id": "AC3",
+      "level": "MUST",
+      "description": "`apipe top N` reads NDJSON, emits up to N records with the highest `score` (default field). `--by <field>` selects a different numeric field. Stable for ties (preserves input order). Streaming with bounded memory: maintains a min-heap of size N rather than buffering all input.",
+      "test": "tests/acceptance_ac3.rs"
+    },
+    {
+      "id": "AC4",
+      "level": "MUST",
+      "description": "`apipe sort -k <field>` reads all NDJSON into memory, emits records sorted ascending by `<field>` (numeric if all values are numeric, else lexicographic). `--desc` reverses. Sort is stable.",
+      "test": "tests/acceptance_ac4.rs"
+    },
+    {
+      "id": "AC5",
+      "level": "MUST",
+      "description": "`apipe schema` (no args) prints the list of known record kinds to stdout, one per line. `apipe schema --kind <name>` prints the JSON Schema for that kind. Unknown kind → exit 2 with stderr diagnostic.",
+      "test": "tests/acceptance_ac5.rs"
+    },
+    {
+      "id": "AC6",
+      "level": "MUST",
+      "description": "`apipe filter <expr>` keeps records where `<expr>` evaluates true. `<expr>` is a minimal predicate language: `<field> <op> <literal>` with ops `==`, `!=`, `<`, `<=`, `>`, `>=`, `~` (substring). String literals quoted; numeric literals bare. Example: `apipe filter 'score > 0.8'`.",
+      "test": "tests/acceptance_ac6.rs"
+    },
+    {
+      "id": "AC7",
+      "level": "MUST",
+      "description": "`apipe pretty` reads NDJSON, emits a human-readable table to stdout. Columns: kind, id, ts, subject, score, plus a one-line snippet of payload. Width-aware: truncates long fields with `…`. Output is line-oriented but NOT NDJSON; pretty is a sink stage (don't chain after it).",
+      "test": "tests/acceptance_ac7.rs"
+    },
+    {
+      "id": "AC8",
+      "level": "MUST",
+      "description": "`apipe to-paths` reads NDJSON, emits bare path strings (one per line) extracted from records of kind=file_event (from `payload.path`) or any record with a top-level `payload.path` field. Non-matching records dropped silently. Escape hatch back to shell `xargs`-style usage.",
+      "test": "tests/acceptance_ac8.rs"
+    },
+    {
+      "id": "AC9",
+      "level": "SHOULD",
+      "description": "`apipe from-paths` reads bare path strings, emits file_event records with `payload.path` set. Stable id derived from `sha256(path)[..12]`, `ts` set to file mtime if the file exists, else current time.",
+      "test": "tests/acceptance_ac9.rs"
+    },
+    {
+      "id": "AC10",
+      "level": "SHOULD",
+      "description": "Malformed JSON lines on input (parse error, not just missing required fields) are reported to stderr with line number, record dropped, processing continues. The pipeline does not abort on a single malformed line.",
+      "test": "tests/acceptance_ac10.rs"
+    }
+  ],
+  "scope": [
+    "Rust 2024 CLI crate `agent-pipe` producing an `apipe` binary.",
+    "Shared NDJSON record schema with required fields: kind, source, id, ts, plus optional session_id, subject, score, payload, annotations.",
+    "Three record kinds in v1: recall_hit, transcript_turn, file_event (each with documented payload sub-schema).",
+    "Streaming subcommands: pass, top, filter, to-paths, from-paths, schema (constant memory).",
+    "Buffering subcommands: sort, pretty (load-into-memory permitted; documented).",
+    "Predicate language for filter: field op literal (ops: ==, !=, <, <=, >, >=, ~).",
+    "Unit + acceptance tests using NDJSON fixture streams under tests/fixtures/."
+  ],
+  "non_goals": [
+    "Not a SQL replacement; not a query language; no JOINs across non-streaming sources.",
+    "Not a replacement for jq; jq stays the tool for ad-hoc JSON outside the agent-tool schema.",
+    "No persistent state between stages.",
+    "No tool-discovery or orchestration (apipe doesn't decide which upstream tool to call).",
+    "No CBOR / binary wire format in this slice (NDJSON only; CBOR is Phase 3).",
+    "No `apipe expand-evidence` / `context` / `attribute` / `match-episode` (those are Phase 1+; require integration with recall/fsstory/memlog).",
+    "No `apipe pipeline 'a | b | c'` sugar (Phase 3).",
+    "No network calls at runtime.",
+    "Not modifying recall, transcript, fsstory, etc. to ship `--format apipe` (separate slices)."
+  ],
+  "hard_constraints": {
+    "rust_edition": "2024",
+    "target_kind": "cli",
+    "deny_unsafe": true,
+    "max_deps": 10,
+    "additional": {
+      "deterministic_output": true,
+      "no_network_at_runtime": true,
+      "single_binary": true,
+      "streaming_default": true
+    }
+  },
+  "five_whys_trace": [
+    {
+      "why": 1,
+      "q": "Why a shared record schema and a runtime binary?",
+      "a": "Today every tool emits a slightly-different JSON shape; chaining them requires hand-rolled jq filters per pair. The combinatorial cost grows with each new tool. A shared schema makes chains additive: each stage enriches the same record shape rather than translating between dialects."
+    },
+    {
+      "why": 2,
+      "q": "Why NDJSON and not CBOR or a binary format?",
+      "a": "NDJSON is line-oriented (preserves Unix-pipe ergonomics), readable in raw form (debugging is just `head`), and supported by every existing tool that already emits structured JSON. CBOR is a Phase 3 optimization for long pipelines."
+    },
+    {
+      "why": 3,
+      "q": "Why ship Phase 0 without the adapter changes to recall/transcript/etc.?",
+      "a": "The runtime is the load-bearing piece. Once it exists with a stable schema, adapter PRs are mechanical (already-structured data → remap to shared schema). Shipping the runtime first prevents adapter work from racing against an unstable schema."
+    },
+    {
+      "why": 4,
+      "q": "Why a predicate language (apipe filter) instead of embedding jq?",
+      "a": "Phase 0 stays self-contained. jq is a runtime dep (or vendored crate); a tiny in-house predicate language is ~200 LoC and covers 80% of the filtering needed in agent pipelines. jq integration (`apipe filter -j`) is a Phase 3 add-on if needed."
+    },
+    {
+      "why": 5,
+      "q": "Why bounded-memory for top/filter but unbounded for sort/pretty?",
+      "a": "Sort needs all input to order it; pretty needs full table width to align columns. These are sink stages where the buffer cost is acceptable. Streaming stages (pass/top/filter/to-paths/from-paths) are the chainable backbone; sinks are the human-facing end."
+    }
+  ],
+  "ambiguities_resolved": [
+    {
+      "question": "Should the schema be enforced strictly (reject extra fields) or permissively?",
+      "resolution": "Permissive: required fields enforced, additional fields preserved through the pipeline. Strict validation is for the future `apipe check` lint stage."
+    },
+    {
+      "question": "What does `apipe pass` do with malformed lines?",
+      "resolution": "Drops the line + writes a stderr diagnostic with line number; processing continues. Pipeline-level error visibility without aborting the chain."
+    },
+    {
+      "question": "Should subcommands chain via a single binary or separate executables?",
+      "resolution": "Single binary, multiple subcommands (`apipe pass | apipe top`). The single-binary form is simpler to ship and matches the PRD's design."
+    }
+  ],
+  "created_at": "2026-05-22T23:30:00Z"
+}
