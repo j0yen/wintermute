@@ -1,0 +1,140 @@
+{
+  "schema": "autobuilder.intent_card.v1",
+  "prd_source": "/home/jsy/projects/autobuilder/PRD-agentic-memory.md",
+  "intent_slug": "recall-doctor",
+  "root_motivation": "PRD-agentic-memory §9.4 surfaces operational gap: /self-review hand-rolls index-vs-file divergence checks because there's no `recall doctor`. The full v0.2 rebuild is multi-session work; this slice ships `recall-doctor` as a standalone companion binary that reads the v0.1 recall data dir, reports {file_count, indexed_count, orphans, missing, embedder_ids, schema_version}, and exits non-zero on divergence. When v0.2 properly rebuilds recall, `doctor` absorbs into the main binary; today it's a useful side-tool that closes the /self-review gap immediately.",
+  "user_persona": "jsy and /self-review Phase A reading divergence reports between the on-disk Markdown memory store (~/.claude/recall/memories/) and the SQLite index (~/.claude/recall/index/recall.sqlite). Output: JSON consumed by /self-review (and shell-pipeline), text for human terminal use.",
+  "unfakeable_metric": {
+    "name": "acceptance_tests_passing_count",
+    "lower_is_better": false,
+    "harness_command": "bash scripts/run-metrics.sh && jq -r '.scalars.acceptance_tests_passing_count' target/autobuilder/metrics.json",
+    "target": null
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "level": "MUST",
+      "description": "CLI binary `recall-doctor` accepts `[--root <dir>]` (default `~/.claude/recall`). Reads the directory, prints a divergence report to stdout, exits 0 when in sync. Empty/nonexistent root → exit 0 with empty report.",
+      "test": "tests/acceptance_ac1.rs"
+    },
+    {
+      "id": "AC2",
+      "level": "MUST",
+      "description": "Walks `<root>/memories/` recursively, counting *.md files; ignores non-Markdown and dot-prefixed directories. Reports `file_count: N`.",
+      "test": "tests/acceptance_ac2.rs"
+    },
+    {
+      "id": "AC3",
+      "level": "MUST",
+      "description": "Queries `<root>/index/recall.sqlite` `memories_meta` table for row count; reports `indexed_count: N`. Missing DB → `indexed_count: null` and warning. Shells out to `sqlite3` binary; absence of `sqlite3` → reports `indexed_count: null` + warning.",
+      "test": "tests/acceptance_ac3.rs"
+    },
+    {
+      "id": "AC4",
+      "level": "MUST",
+      "description": "Computes orphans: file IDs present on disk (parsed from frontmatter `id:` field) but not in `memories_meta`. Reports `orphans: [<id>...]` sorted lexicographically.",
+      "test": "tests/acceptance_ac4.rs"
+    },
+    {
+      "id": "AC5",
+      "level": "MUST",
+      "description": "Computes missing: `memories_meta` rows whose `path` column points to a non-existent file. Reports `missing: [<id>...]` sorted lexicographically.",
+      "test": "tests/acceptance_ac5.rs"
+    },
+    {
+      "id": "AC6",
+      "level": "MUST",
+      "description": "Reports `embedder_ids: [<id>...]` — distinct `embedding_id` values from `memories_meta` (excluding NULL). Empty list when no rows or no embeddings.",
+      "test": "tests/acceptance_ac6.rs"
+    },
+    {
+      "id": "AC7",
+      "level": "MUST",
+      "description": "Output format selectable via `--format text|json` (default text). JSON shape: `{file_count, indexed_count, orphans, missing, embedder_ids, schema_version, warnings}`. Deterministic key ordering; same input → byte-identical output.",
+      "test": "tests/acceptance_ac7.rs"
+    },
+    {
+      "id": "AC8",
+      "level": "MUST",
+      "description": "Exit code 0 when in sync (orphans+missing empty AND indexed_count == file_count). Exit code 1 when divergent. Exit code 2 on invocation error (bad --root that exists but isn't a dir, malformed args). Stable across runs.",
+      "test": "tests/acceptance_ac8.rs"
+    },
+    {
+      "id": "AC9",
+      "level": "MUST",
+      "description": "`--fix` invokes `recall reindex` (shelling out via PATH) when orphans OR missing is non-empty. Default (no --fix) is read-only — never writes. When `recall` isn't on PATH, `--fix` emits a warning and exits with code 1.",
+      "test": "tests/acceptance_ac9.rs"
+    },
+    {
+      "id": "AC10",
+      "level": "SHOULD",
+      "description": "Reports `schema_version: <string>` derived from a `meta` table or `PRAGMA user_version`; falls back to `\"v0.1-undeclared\"` when no schema version is queryable. Documented in the report so /self-review can warn on bumps.",
+      "test": "tests/acceptance_ac10.rs"
+    }
+  ],
+  "scope": [
+    "Rust 2024 CLI crate `recall-doctor` producing a `recall-doctor` binary.",
+    "Walker over `<root>/memories/` for *.md files; YAML frontmatter parse for the `id` field.",
+    "Shell-out to `sqlite3` binary for indexed_count, missing rows, embedder_ids, schema_version.",
+    "Set-difference computation for orphans + missing.",
+    "Two output formats: human-readable text (default) + stable JSON (--format json).",
+    "Exit code 0/1/2 mapping.",
+    "Optional --fix path that calls `recall reindex` (shell-out)."
+  ],
+  "non_goals": [
+    "Not recall itself. No write surface to memories, no index rebuild logic in-tree (delegates to `recall reindex`).",
+    "Not the full v0.2 rebuild. recall-doctor is a side-tool; the v0.2 binary will absorb it later.",
+    "No SQLite linking (no rusqlite). Uses sqlite3 shell-out to keep dep count low.",
+    "No daemon, no socket, no network.",
+    "No auto-correction of frontmatter (e.g. rewriting bad timestamps); divergence-detection only.",
+    "Not a generic SQLite health-check; only the recall v0.1 schema is recognized."
+  ],
+  "hard_constraints": {
+    "rust_edition": "2024",
+    "target_kind": "cli",
+    "deny_unsafe": true,
+    "max_deps": 8,
+    "additional": {
+      "deterministic_output": true,
+      "no_network_at_runtime": true,
+      "single_binary": true
+    }
+  },
+  "five_whys_trace": [
+    {
+      "why": 1,
+      "q": "Why a standalone `recall-doctor` instead of adding `doctor` to the recall binary?",
+      "a": "The recall binary is already deployed and stable in v0.1. Adding doctor inline requires a v0.2 rebuild that's multi-session work. A standalone tool lands the value now; absorption is mechanical later."
+    },
+    {
+      "why": 2,
+      "q": "Why shell out to `sqlite3` instead of using rusqlite?",
+      "a": "rusqlite + bundled sqlite is ~6MB of extra binary + license/audit surface. The doctor tool runs once per /self-review pass; shelling out costs ~30ms — negligible. Keeps the binary small + deps under 8."
+    },
+    {
+      "why": 3,
+      "q": "Why distinguish file-on-disk-without-index from index-row-without-file?",
+      "a": "Different repair paths. Orphans (file-without-index) → reindex picks them up. Missing (index-without-file) → row needs to be deleted from the index. Lumping them obscures which fix to apply."
+    },
+    {
+      "why": 4,
+      "q": "Why JSON output as a first-class format?",
+      "a": "/self-review consumes this programmatically. Text format is for human terminal use; JSON is the contract with the consuming skill."
+    }
+  ],
+  "ambiguities_resolved": [
+    {
+      "question": "How does doctor know what the canonical schema version is?",
+      "resolution": "Queries `PRAGMA user_version` first; if 0, looks for a `meta` table (future v0.2 convention); if neither, reports `v0.1-undeclared`. This lets v0.2 bump the version cleanly without breaking doctor."
+    },
+    {
+      "question": "What if `recall reindex` doesn't exist on PATH when --fix is invoked?",
+      "resolution": "Warning to stderr + exit 1. Doctor never tries to rebuild the index itself; that's recall's job exclusively."
+    },
+    {
+      "question": "Do hidden subdirs under memories/ get walked?",
+      "resolution": "No, per the linter's precedent. Dot-prefixed directories are skipped — same walker semantics as recall-memory-linter."
+    }
+  ],
+  "created_at": "2026-05-23T01:00:00Z"
+}
