@@ -1,0 +1,142 @@
+{
+  "schema": "autobuilder.intent_card.v1",
+  "prd_source": "/home/jsy/projects/autobuilder/PRD-agentic-memory.md",
+  "intent_slug": "recall-io",
+  "root_motivation": "PRD-agentic-memory §A item 11 (recall export / recall import) — round-trippable serialization of the v0.1 recall store as NDJSON. Closes the remaining standalone-buildable v0.2 item alongside recall-doctor (slice 1) and recall-ops (slice 2). Use cases: backup/restore, migration to v0.2 schema, manual editing in a single editable file.",
+  "user_persona": "jsy backing up `~/.claude/recall/` to a single file for safekeeping, restoring after `~/.claude/` corruption, or migrating between machines. Output: NDJSON to stdout (one memory per line). Input for import: a previously-exported NDJSON file (or any conforming stream).",
+  "unfakeable_metric": {
+    "name": "acceptance_tests_passing_count",
+    "lower_is_better": false,
+    "harness_command": "bash scripts/run-metrics.sh && jq -r '.scalars.acceptance_tests_passing_count' target/autobuilder/metrics.json",
+    "target": null
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "level": "MUST",
+      "description": "`recall-io export [--root <dir>]` emits one JSON object per memory to stdout (NDJSON, one per line). Each object contains: `id`, `kind`, `subject`, `path`, `confidence`, `created_at`, `last_recalled_at`, `recall_count`, `embedding_id`, `supersedes_json`, plus the `body` (from the .md file, post-frontmatter). Empty store → empty output, exit 0.",
+      "test": "tests/acceptance_ac1.rs"
+    },
+    {
+      "id": "AC2",
+      "level": "MUST",
+      "description": "Export is deterministic: sorted by id ascending. Two consecutive exports of the same store produce byte-identical output.",
+      "test": "tests/acceptance_ac2.rs"
+    },
+    {
+      "id": "AC3",
+      "level": "MUST",
+      "description": "`recall-io import <jsonl-path>` reads the NDJSON stream, writes one .md file per memory to `<root>/memories/<subject>/<id>.md` (with frontmatter + body), and INSERTs rows into memories_meta. Creates the root dir + index if absent.",
+      "test": "tests/acceptance_ac3.rs"
+    },
+    {
+      "id": "AC4",
+      "level": "MUST",
+      "description": "Import is additive by default — duplicate ids (already present in memories_meta) are SKIPPED with a stderr warning, original row + file untouched. Reports `{imported: N, skipped: M, errors: K}` in JSON mode.",
+      "test": "tests/acceptance_ac4.rs"
+    },
+    {
+      "id": "AC5",
+      "level": "MUST",
+      "description": "`--replace` flag overrides skip behavior: duplicate ids cause the existing .md + index row to be replaced with the imported version.",
+      "test": "tests/acceptance_ac5.rs"
+    },
+    {
+      "id": "AC6",
+      "level": "MUST",
+      "description": "Round-trip: export a fixture store → wipe → import the export → all ids present in memories_meta, file count matches, body content preserved byte-identically.",
+      "test": "tests/acceptance_ac6.rs"
+    },
+    {
+      "id": "AC7",
+      "level": "MUST",
+      "description": "Malformed JSON lines on import → log to stderr with line number, count in `errors`, continue. Lines missing required fields (id, kind, subject) → same treatment.",
+      "test": "tests/acceptance_ac7.rs"
+    },
+    {
+      "id": "AC8",
+      "level": "MUST",
+      "description": "Exit codes: 0 = success; 1 = expected failure (no candidates exported on empty store with --strict; all import lines invalid); 2 = invocation error (bad path, sqlite3 unavailable, --root that's not a dir).",
+      "test": "tests/acceptance_ac8.rs"
+    },
+    {
+      "id": "AC9",
+      "level": "MUST",
+      "description": "`--format json` for import emits a single summary JSON object to stdout; text mode emits a one-line summary plus per-line warnings to stderr.",
+      "test": "tests/acceptance_ac9.rs"
+    },
+    {
+      "id": "AC10",
+      "level": "SHOULD",
+      "description": "`recall-io import` from stdin works: `--` as the filename reads from stdin. Useful for shell pipes (e.g. `recall-io export --root A | recall-io import - --root B`).",
+      "test": "tests/acceptance_ac10.rs"
+    }
+  ],
+  "scope": [
+    "Rust 2024 CLI crate `recall-io` producing a `recall-io` binary.",
+    "Subcommands: export, import.",
+    "NDJSON wire format (one memory per line).",
+    "sqlite3 shell-out for index reads/writes.",
+    "Direct file I/O for .md read (export) and write (import).",
+    "Optional --replace flag for import.",
+    "Optional `-` filename for stdin import.",
+    "Two output formats: text (default) + JSON summary.",
+    "Acceptance tests + fixtures."
+  ],
+  "non_goals": [
+    "No SQLite linking (rusqlite); sqlite3 shell-out only.",
+    "No re-embedding on import — embedding_id and supersedes_json pass through verbatim.",
+    "No partial-export filtering (--subject / --kind / --since) — that's a query layer, not export's job.",
+    "No diff/merge — import is INSERT-or-replace, not three-way.",
+    "No daemon, no socket, no network.",
+    "Not the v0.2 schema migration tool (that's recall-doctor + recall-ops + recall-io combined, not a new binary)."
+  ],
+  "hard_constraints": {
+    "rust_edition": "2024",
+    "target_kind": "cli",
+    "deny_unsafe": true,
+    "max_deps": 8,
+    "additional": {
+      "deterministic_output": true,
+      "no_network_at_runtime": true,
+      "single_binary": true
+    }
+  },
+  "five_whys_trace": [
+    {
+      "why": 1,
+      "q": "Why NDJSON for export and not a single JSON array?",
+      "a": "NDJSON streams. The store could have thousands of memories; a single-array JSON requires buffering all of them. Per-line shape also lets import stream and survive a partially-bad line."
+    },
+    {
+      "why": 2,
+      "q": "Why include `body` in the export object?",
+      "a": "The .md file is authoritative for body content. Exporting just the index leaves the body in separate files and breaks round-trip when the consumer doesn't have file-system access to the source store."
+    },
+    {
+      "why": 3,
+      "q": "Why import is additive by default (skip duplicates) rather than replace?",
+      "a": "Re-running an import shouldn't destroy in-flight work. The principle of least surprise: imports add, --replace explicitly opts into destructive merge."
+    },
+    {
+      "why": 4,
+      "q": "Why a separate `recall-io` binary instead of subcommands in recall-ops?",
+      "a": "Different concern: recall-ops mutates in-place; recall-io is bulk-transport. Pairing them would entangle two security postures (per-row touch/gc vs whole-store wipe-on-import)."
+    }
+  ],
+  "ambiguities_resolved": [
+    {
+      "question": "What's the export `body` for a memory whose .md file is missing?",
+      "resolution": "Empty string. Warning to stderr noting the file is missing. The row still exports (index row is authoritative for id existence)."
+    },
+    {
+      "question": "Does import respect the subject directory hierarchy?",
+      "resolution": "Yes. Subjects can contain `/` (e.g. `project:autobuilder`). Imported files land at `<root>/memories/<subject-with-slashes>/<id>.md`."
+    },
+    {
+      "question": "How does --replace handle a row whose id exists but whose path field differs?",
+      "resolution": "Old file (at old path) is deleted; new file written at the imported path; index row UPDATEd."
+    }
+  ],
+  "created_at": "2026-05-23T02:00:00Z"
+}
