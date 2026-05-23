@@ -28,6 +28,10 @@
           {
             "type": "command",
             "command": "/home/jsy/.claude/scripts/scratch-tools-start.sh"
+          },
+          {
+            "type": "command",
+            "command": "/home/jsy/.claude/scripts/claude-self-start.sh"
           }
         ]
       }
