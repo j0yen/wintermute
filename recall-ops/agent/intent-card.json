@@ -1,0 +1,142 @@
+{
+  "schema": "autobuilder.intent_card.v1",
+  "prd_source": "/home/jsy/projects/autobuilder/PRD-agentic-memory.md",
+  "intent_slug": "recall-ops",
+  "root_motivation": "PRD-agentic-memory §A items 4/5/7/8/9 (touch/update/gc/stats/lineage) — operational maintenance commands missing from recall v0.1 that /self-review hand-rolls today. Like recall-doctor (slice 1 of v0.2), this ships standalone alongside the deployed v0.1 binary; full absorption into a v0.2 recall binary is later work. Each subcommand reads and (where applicable) writes the index + .md store using sqlite3 shell-out, preserving the existing schema byte-compatibly.",
+  "user_persona": "jsy and /self-review consuming `recall-ops touch <id>...` to bump recall_count, `recall-ops gc --older-than 30d --dry-run|--apply` for retention, `recall-ops stats` for overview, `recall-ops lineage <id>` to walk supersedes chains, `recall-ops update <id> --body` for edits. Output: text default, JSON on --format json.",
+  "unfakeable_metric": {
+    "name": "acceptance_tests_passing_count",
+    "lower_is_better": false,
+    "harness_command": "bash scripts/run-metrics.sh && jq -r '.scalars.acceptance_tests_passing_count' target/autobuilder/metrics.json",
+    "target": null
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "level": "MUST",
+      "description": "`recall-ops touch <id>` bumps `recall_count` by 1 and sets `last_recalled_at` to now (RFC3339) in `memories_meta` for the given id. Exits 0 on success, 1 if the id is unknown.",
+      "test": "tests/acceptance_ac1.rs"
+    },
+    {
+      "id": "AC2",
+      "level": "MUST",
+      "description": "`recall-ops touch <id1> <id2>...` accepts multiple ids; `--format json` returns `{touched: N, results: [{id, new_count, last_recalled_at}, ...]}`. Default text format prints one line per id.",
+      "test": "tests/acceptance_ac2.rs"
+    },
+    {
+      "id": "AC3",
+      "level": "MUST",
+      "description": "`recall-ops gc --older-than <duration> [--never-recalled]` lists candidate memory ids matching the predicate (created_at + last_recalled_at older than now-duration; if --never-recalled, also requires recall_count=0). Without --apply, prints candidates and exits 0 (dry-run is default).",
+      "test": "tests/acceptance_ac3.rs"
+    },
+    {
+      "id": "AC4",
+      "level": "MUST",
+      "description": "`recall-ops gc ... --apply` removes the .md file at memories_meta.path AND deletes the row from memories_meta for each candidate. Reports `{deleted: N, ids: [...]}` in JSON mode. Refuses to run without --older-than to prevent accidental wipe.",
+      "test": "tests/acceptance_ac4.rs"
+    },
+    {
+      "id": "AC5",
+      "level": "MUST",
+      "description": "`recall-ops stats [--format text|json]` reports `{total, by_subject: {<subject>: N}, by_kind: {<kind>: N}, oldest_created: <RFC3339 or null>, distinct_embedder_ids: [...]}` from memories_meta. Deterministic JSON output.",
+      "test": "tests/acceptance_ac5.rs"
+    },
+    {
+      "id": "AC6",
+      "level": "MUST",
+      "description": "`recall-ops lineage <id> [--format text|json]` walks `supersedes_json` (a JSON array of ids stored on each row) bidirectionally: ancestors (this row supersedes …) and descendants (this row is superseded by …). Returns chain entries with id, kind, subject, created_at. 1-deep chain returns 1 entry; cycles are broken at first repeat.",
+      "test": "tests/acceptance_ac6.rs"
+    },
+    {
+      "id": "AC7",
+      "level": "MUST",
+      "description": "`recall-ops update <id> --confidence <0..1>` updates the row's confidence value in-place. `--body <text>` rewrites the .md body (preserving frontmatter). Exit 1 on unknown id, 0 on success.",
+      "test": "tests/acceptance_ac7.rs"
+    },
+    {
+      "id": "AC8",
+      "level": "MUST",
+      "description": "All subcommands accept `--root <dir>` (default `~/.claude/recall`). Missing/unreadable root → exit 2 with stderr diagnostic. Missing sqlite3 binary → exit 2.",
+      "test": "tests/acceptance_ac8.rs"
+    },
+    {
+      "id": "AC9",
+      "level": "MUST",
+      "description": "Exit codes: 0 success, 1 expected failure (unknown id, no candidates, dry-run with no matches), 2 invocation error. Stable across runs on identical inputs.",
+      "test": "tests/acceptance_ac9.rs"
+    },
+    {
+      "id": "AC10",
+      "level": "SHOULD",
+      "description": "`stats` and `lineage` outputs are byte-identical across consecutive runs on the same fixture. Sorts (by_subject, by_kind keys, lineage entries) are deterministic.",
+      "test": "tests/acceptance_ac10.rs"
+    }
+  ],
+  "scope": [
+    "Rust 2024 CLI crate `recall-ops` producing a `recall-ops` binary.",
+    "Subcommands: touch, gc, stats, lineage, update.",
+    "Shell-out to sqlite3 for index reads + writes.",
+    "Direct file I/O for .md body rewrites (update --body) and deletions (gc --apply).",
+    "Two output formats: human-readable text + structured JSON.",
+    "Optional --root override (default ~/.claude/recall).",
+    "Acceptance + proptest fixtures committed under tests/fixtures/."
+  ],
+  "non_goals": [
+    "Not the full v0.2 rebuild. Companion to deployed v0.1 binary; absorbed later.",
+    "No new index columns; uses existing memories_meta schema.",
+    "No FastEmbed integration (that's a separate slice).",
+    "No `recall query` filter additions (those need recall binary edits).",
+    "No `recall write` or `recall init` replacements.",
+    "No SQLite library linking (rusqlite); sqlite3 shell-out only.",
+    "No daemon, no socket, no network.",
+    "No undo on `gc --apply` (sharp tool; document and trust the external classifier)."
+  ],
+  "hard_constraints": {
+    "rust_edition": "2024",
+    "target_kind": "cli",
+    "deny_unsafe": true,
+    "max_deps": 8,
+    "additional": {
+      "deterministic_output": true,
+      "no_network_at_runtime": true,
+      "single_binary": true
+    }
+  },
+  "five_whys_trace": [
+    {
+      "why": 1,
+      "q": "Why a separate `recall-ops` binary rather than extending the deployed `recall`?",
+      "a": "Same reason as recall-doctor: deployed v0.1 is stable; extending in-place requires a v0.2 rebuild that's bigger than this slice. Companion binary lands the value immediately."
+    },
+    {
+      "why": 2,
+      "q": "Why combine 5 subcommands (touch, gc, stats, lineage, update) into one binary?",
+      "a": "They share the same data layout, share the sqlite3 shell-out helpers, and are conceptually 'operations on existing memories.' Splitting into 5 binaries would 5x the maintenance + clutter ~/.local/bin/."
+    },
+    {
+      "why": 3,
+      "q": "Why is `gc` dry-run by default?",
+      "a": "Delete-by-predicate is high-stakes. The PRD's external classifier blocks `recall delete` from automated callers; this slice preserves that posture — explicit --apply required."
+    },
+    {
+      "why": 4,
+      "q": "Why update --body modify the .md file but update --confidence only the index?",
+      "a": "Confidence lives only in the index row. Body lives in the .md file (with frontmatter preserved). Each subcommand touches exactly the layers it needs."
+    }
+  ],
+  "ambiguities_resolved": [
+    {
+      "question": "What does `touch` do if the file mtime should also bump?",
+      "resolution": "Only the index columns (recall_count, last_recalled_at) are updated. File mtime is preserved to keep the on-disk Markdown authoritative for content (not access)."
+    },
+    {
+      "question": "How does `lineage` resolve cycles in supersedes_json?",
+      "resolution": "Visited set; break at first repeat. Cycles shouldn't happen in well-formed data; broken to keep the walker total."
+    },
+    {
+      "question": "What's the format of `supersedes_json` in memories_meta?",
+      "resolution": "JSON array of id strings, e.g. `[\"01A\",\"01B\"]`. Empty array means no ancestors. Parsed best-effort; malformed values treated as empty."
+    }
+  ],
+  "created_at": "2026-05-23T01:30:00Z"
+}
