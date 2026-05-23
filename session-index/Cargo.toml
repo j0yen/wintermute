@@ -1,0 +1,48 @@
+[package]
+name = "session-index"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "transcript: FTS5 index over ~/.claude/projects/*.jsonl session traces."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/j0yen/wintermute"
+publish = false
+
+[lints.rust]
+unsafe_code = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "warn"
+panic = "deny"
+dbg_macro = "deny"
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+cast_precision_loss = "allow"
+cast_possible_truncation = "allow"
+cast_sign_loss = "allow"
+
+[[bin]]
+name = "transcript"
+path = "src/main.rs"
+
+[lib]
+name = "session_index"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4.5", features = ["derive"] }
+directories = "5"
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+walkdir = "2"
+
+[dev-dependencies]
+tempfile = "3"
