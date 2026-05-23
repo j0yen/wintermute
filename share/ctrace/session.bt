@@ -14,14 +14,21 @@ BEGIN
            nsecs / 1000000, $1);
 }
 
+/* Match on `pid` (TGID of current task) rather than args->parent_pid
+ * (kernel TID of the forking thread). claude is heavily multi-threaded;
+ * a worker-thread fork would leave args->parent_pid != root_pid and the
+ * child would never be tracked. */
 tracepoint:sched:sched_process_fork
-/@track[args->parent_pid] == 1/
+/@track[pid] == 1/
 {
     @track[args->child_pid] = 1;
 }
 
+/* sched_process_exit fires per thread exit. Only delete when the
+ * exiting task is the thread-group leader (tid == pid) so a worker
+ * thread's exit doesn't drop tracking for the still-running process. */
 tracepoint:sched:sched_process_exit
-/@track[pid] == 1/
+/@track[pid] == 1 && tid == pid/
 {
     delete(@track, pid);
 }

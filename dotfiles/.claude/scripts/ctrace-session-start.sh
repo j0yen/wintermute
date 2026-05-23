@@ -33,9 +33,18 @@ if [ -f "$marker" ]; then
     fi
 fi
 
-# Honor any running tracer (foreign or already-owned). Do not fight.
-if "$ctrace" status 2>/dev/null | jq -e '.running == true' >/dev/null 2>&1; then
-    exit 0
+# Honor any running tracer (foreign or already-owned). Do not fight —
+# unless it's orphaned (tracer alive but root_pid dead), in which case
+# no new events will ever be captured. Stop and replace.
+status=$("$ctrace" status 2>/dev/null)
+if echo "$status" | jq -e '.running == true' >/dev/null 2>&1; then
+    cur_root=$(echo "$status" | jq -r '.root_pid // empty')
+    if [ -n "$cur_root" ] && ! kill -0 "$cur_root" 2>/dev/null; then
+        "$ctrace" stop >/dev/null 2>&1 || true
+        rm -f "$marker"
+    else
+        exit 0
+    fi
 fi
 
 iso=$(date +%Y%m%dT%H%M%S)
