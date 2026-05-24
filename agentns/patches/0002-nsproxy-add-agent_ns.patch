@@ -1,0 +1,95 @@
+From: j0yen <jyen.tech@gmail.com>
+Date: 2026-05-24
+Subject: [PATCH 02/10] nsproxy: add agent_ns slot
+
+Add the agent_namespace pointer to nsproxy.  Default for every existing
+task is &init_agent_ns (session_id == 0, "not in a session").
+
+Signed-off-by: j0yen <jyen.tech@gmail.com>
+---
+ include/linux/nsproxy.h | 4 ++++
+ kernel/nsproxy.c        | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)
+
+--- a/include/linux/nsproxy.h
++++ b/include/linux/nsproxy.h
+@@ -16,6 +16,7 @@ struct cgroup_namespace;
+ struct fs_struct;
+ struct time_namespace;
+ struct cgroup_namespace;
++struct agent_namespace;
+
+ /*
+  * A structure to contain pointers to all per-process
+@@ -38,6 +39,9 @@ struct nsproxy {
+ 	struct time_namespace *time_ns;
+ 	struct time_namespace *time_ns_for_children;
+ 	struct cgroup_namespace *cgroup_ns;
++#ifdef CONFIG_AGENT_NS
++	struct agent_namespace *agent_ns;
++#endif
+ };
+ extern struct nsproxy init_nsproxy;
+
+--- a/kernel/nsproxy.c
++++ b/kernel/nsproxy.c
+@@ -25,6 +25,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/cgroup.h>
+ #include <linux/perf_event.h>
++#include <linux/agent_namespaces.h>
+
+ static struct kmem_cache *nsproxy_cachep;
+
+@@ -41,6 +42,9 @@ struct nsproxy init_nsproxy = {
+ #if defined(CONFIG_CGROUPS)
+ 	.cgroup_ns		= &init_cgroup_ns,
+ #endif
++#ifdef CONFIG_AGENT_NS
++	.agent_ns		= &init_agent_ns,
++#endif
+ };
+
+ static inline struct nsproxy *create_nsproxy(void)
+@@ -110,8 +114,21 @@ static struct nsproxy *create_new_namespaces(unsigned long flags,
+ 		goto out_time;
+ 	}
+
++#ifdef CONFIG_AGENT_NS
++	new_nsp->agent_ns = copy_agent_ns(flags, user_ns,
++					  tsk->nsproxy ? tsk->nsproxy->agent_ns
++						       : &init_agent_ns);
++	if (IS_ERR(new_nsp->agent_ns)) {
++		err = PTR_ERR(new_nsp->agent_ns);
++		goto out_agent;
++	}
++#endif
++
+ 	return new_nsp;
+
++#ifdef CONFIG_AGENT_NS
++out_agent:
++	put_time_ns(new_nsp->time_ns);
++#endif
+ out_time:
+ 	put_cgroup_ns(new_nsp->cgroup_ns);
+ out_cgroup:
+@@ -147,7 +164,7 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
+
+ 	if (likely(!(flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC |
+ 			      CLONE_NEWPID | CLONE_NEWNET |
+-			      CLONE_NEWCGROUP | CLONE_NEWTIME)))) {
++			      CLONE_NEWCGROUP | CLONE_NEWTIME | CLONE_NEWAGENT)))) {
+ 		if (likely(old_ns->time_ns_for_children == old_ns->time_ns)) {
+ 			get_nsproxy(old_ns);
+ 			return 0;
+@@ -185,6 +202,9 @@ void free_nsproxy(struct nsproxy *ns)
+ 		put_time_ns(ns->time_ns);
+ 	if (ns->cgroup_ns)
+ 		put_cgroup_ns(ns->cgroup_ns);
++#ifdef CONFIG_AGENT_NS
++	put_agent_ns(ns->agent_ns);
++#endif
+ 	put_net(ns->net_ns);
+ 	kmem_cache_free(nsproxy_cachep, ns);
+ }

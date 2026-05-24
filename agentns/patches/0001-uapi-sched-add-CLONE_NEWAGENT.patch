@@ -1,0 +1,22 @@
+From: j0yen <jyen.tech@gmail.com>
+Date: 2026-05-24
+Subject: [PATCH 01/10] uapi/sched: allocate CLONE_NEWAGENT bit
+
+Claim bit 0x40000000 for CLONE_NEWAGENT.  Historically held by
+CLONE_NEWUSER pre-3.8; reclaimed here for the wintermute Agent Namespace.
+
+Signed-off-by: j0yen <jyen.tech@gmail.com>
+---
+ include/uapi/linux/sched.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+--- a/include/uapi/linux/sched.h
++++ b/include/uapi/linux/sched.h
+@@ -39,6 +39,7 @@
+ #define CLONE_NEWNET		0x40000000	/* WAS: New network namespace (deprecated) */
+ #define CLONE_IO		0x80000000	/* Clone io context */
+
++#define CLONE_NEWAGENT		0x00000100	/* New agent namespace (wintermute vendor) */
+ /* Flags for the clone3() syscall. */
+ #define CLONE_CLEAR_SIGHAND	0x100000000ULL /* Clear any signal handler set by the parent. */
+ #define CLONE_INTO_CGROUP	0x200000000ULL /* Clone into a specific cgroup given the right permissions. */

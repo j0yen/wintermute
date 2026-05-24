@@ -1,0 +1,35 @@
+From: j0yen <jyen.tech@gmail.com>
+Date: 2026-05-24
+Subject: [PATCH 03/10] fork: bump per-NS fork counter on copy_process
+
+Increment the agent_ns fork counter from copy_process so per-session
+counts include children that don't unshare(CLONE_NEWAGENT).
+
+Signed-off-by: j0yen <jyen.tech@gmail.com>
+---
+ kernel/fork.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -101,6 +101,7 @@
+ #include <linux/io_uring.h>
+ #include <linux/bpf.h>
+ #include <linux/stackprotector.h>
++#include <linux/agent_namespaces.h>
+
+ #include <asm/pgalloc.h>
+ #include <linux/uaccess.h>
+@@ -2310,6 +2311,12 @@ static __latent_entropy struct task_struct *copy_process(
+ 	if (retval)
+ 		goto bad_fork_cleanup_namespaces;
+
++	/*
++	 * Inheritance of agent_ns happens via copy_namespaces() above; the
++	 * fork counter bump is best-effort and runs after that succeeds.
++	 */
++	agent_ns_count_fork();
++
+ 	retval = copy_thread(p, args);
+ 	if (retval)
+ 		goto bad_fork_cleanup_io;

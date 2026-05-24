@@ -1,0 +1,55 @@
+From: j0yen <jyen.tech@gmail.com>
+Date: 2026-05-24
+Subject: [PATCH 07/10] build: wire agent_namespaces.o + CONFIG_AGENT_NS
+
+Build kernel/agent_namespaces.o when CONFIG_AGENT_NS is set.  Add the
+Kconfig entry near the existing namespace knobs.
+
+Signed-off-by: j0yen <jyen.tech@gmail.com>
+---
+ init/Kconfig    | 23 +++++++++++++++++++++++
+ kernel/Makefile |  1 +
+ 2 files changed, 24 insertions(+)
+
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1265,6 +1265,29 @@ config CHECKPOINT_RESTORE
+
+ 	  If unsure, say N here.
+
++config AGENT_NS
++	bool "Agent namespaces (wintermute)"
++	default y
++	depends on NAMESPACES
++	help
++	  Vendor-fork namespace type CLONE_NEWAGENT.  Every process belongs
++	  to an agent namespace identified by a 128-bit opaque session id.
++	  Children inherit; the id is exposed at /proc/$PID/agent_session
++	  and /proc/$PID/ns/agent.  Per-namespace counters track syscalls,
++	  bytes written, open and connect counts.
++
++	  Use case: long-running agentic workloads (e.g. Claude Code
++	  sessions) where userspace tools currently re-derive "which
++	  process belongs to which session" by walking the PID tree.
++
++	  This is opt-in label-only — tasks that never call
++	  unshare(CLONE_NEWAGENT) stay in the init agent namespace with
++	  session_id == 0 and incur zero overhead beyond a single NULL
++	  check on the fast path.
++
++	  Out-of-tree.  Not for upstream submission.  Say Y if your build
++	  is the wintermute kernel; otherwise N.
++
+ config SCHED_AUTOGROUP
+ 	bool "Automatic process group scheduling"
+ 	select CGROUPS
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -41,6 +41,7 @@ obj-y += rcu/
+ obj-y += livepatch/
+ obj-y += dma/
+ obj-y += entry/
++obj-$(CONFIG_AGENT_NS) += agent_namespaces.o
+
+ obj-$(CONFIG_KCMP) += kcmp.o
+ obj-$(CONFIG_FREEZER) += freezer.o

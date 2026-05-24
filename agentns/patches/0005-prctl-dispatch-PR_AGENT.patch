@@ -1,0 +1,41 @@
+From: j0yen <jyen.tech@gmail.com>
+Date: 2026-05-24
+Subject: [PATCH 05/10] sys: dispatch PR_AGENT_* prctls
+
+Route PR_AGENT_* options (PR_GET_AGENT_SESSION_ID, PR_SET_AGENT_INTENT_TAG,
+etc.) to agent_ns_prctl().  Options live in a high range chosen from the
+PR_* pool to avoid colliding with existing or future mainline options;
+see uapi/linux/agent_namespaces.h.
+
+Signed-off-by: j0yen <jyen.tech@gmail.com>
+---
+ kernel/sys.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -65,6 +65,8 @@
+ #include <linux/unistd.h>
+ #include <asm/pgtable.h>
+ #include <asm/io.h>
++#include <linux/agent_namespaces.h>
++#include <uapi/linux/agent_namespaces.h>
+
+ #include "uid16.h"
+
+@@ -2603,6 +2605,16 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+ 	long error = 0;
+ 	long uval = 0;
+
++	/* PR_AGENT_* range first so we short-circuit before the dense switch */
++	if (option >= PR_AGENT_BASE && option <= PR_AGENT_BASE + 31) {
++#ifdef CONFIG_AGENT_NS
++		return agent_ns_prctl(me, option, arg2, arg3, arg4, arg5);
++#else
++		return -EINVAL;
++#endif
++	}
++
+ 	error = security_task_prctl(option, arg2, arg3, arg4, arg5);
+ 	if (error != -ENOSYS)
+ 		return error;

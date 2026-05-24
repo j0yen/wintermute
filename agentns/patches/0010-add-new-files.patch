@@ -1,0 +1,20 @@
+From: j0yen <jyen.tech@gmail.com>
+Date: 2026-05-24
+Subject: [PATCH 10/10] add new files: kernel/agent_namespaces.c, headers, tracepoints
+
+This patch is a placeholder.  The new files live in ../kernel/,
+../include/linux/, ../include/uapi/linux/, ../include/trace/events/
+within this vendor-patch directory and are copied into the kernel tree
+verbatim by scripts/build.sh before the numbered diffs are applied.
+
+  kernel/agent_namespaces.c
+  include/linux/agent_namespaces.h
+  include/uapi/linux/agent_namespaces.h
+  include/trace/events/agent_ns.h
+
+A real `git format-patch` series would include these as full-file
+additions; the split-out form is friendlier for editing and rebasing
+during the wintermute kernel bumps that this PRD calls "the maintenance
+cost the user accepts."
+
+Signed-off-by: j0yen <jyen.tech@gmail.com>

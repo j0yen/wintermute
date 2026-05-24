@@ -1,0 +1,34 @@
+From: j0yen <jyen.tech@gmail.com>
+Date: 2026-05-24
+Subject: [PATCH 09/10] proc/ns: register agentns_operations
+
+Add agentns_operations to the namespace ops table so /proc/$PID/ns/agent
+appears alongside the standard seven namespaces, and nsenter / lsns
+learn to enumerate it.
+
+Signed-off-by: j0yen <jyen.tech@gmail.com>
+---
+ fs/proc/namespaces.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+--- a/fs/proc/namespaces.c
++++ b/fs/proc/namespaces.c
+@@ -16,6 +16,9 @@
+ #include <linux/pid_namespace.h>
+ #include <linux/user_namespace.h>
+ #include <net/net_namespace.h>
++#ifdef CONFIG_AGENT_NS
++#include <linux/agent_namespaces.h>
++#endif
+
+ #include "internal.h"
+
+@@ -36,6 +39,9 @@ static const struct proc_ns_operations *ns_entries[] = {
+ #endif
+ #ifdef CONFIG_TIME_NS
+ 	&timens_operations,
++#endif
++#ifdef CONFIG_AGENT_NS
++	&agentns_operations,
+ #endif
+ };
