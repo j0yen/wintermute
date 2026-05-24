@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
-# agorabus-worker.sh — listen on rpc.req.<sid> for delegate.run requests,
-# spawn `claude --print` to execute, publish replies on rpc.reply.<requester>.
+# agorabus-worker.sh — RPC handler for one Claude session.
+#
+# Subscribes to rpc.req.<sid> and dispatches per AGORABUS_RPC.md v0.1:
+#   ping          → {pong_unix, session_id}        (default method)
+#   self.describe → {session_id, cwd, claude_version, started_unix, methods}
+#   methods.list  → {methods: [...]}                (default method)
+#   delegate.run  → spawn `claude --print` in caller-specified cwd
+# Unknown methods reply {ok:false, error:"unknown_method"}.
 #
 # Started by SessionStart hook (one per claude session); killed at SessionEnd.
 # Idempotent: refuses to start if a worker for this sid is already running.
@@ -9,10 +15,15 @@ set -u
 
 agorabus=/home/jsy/.local/bin/agorabus
 sid="${1:-}"
+worker_cwd="${2:-$HOME}"
 if [ -z "$sid" ]; then
-    echo "usage: agorabus-worker.sh <sid>" >&2
+    echo "usage: agorabus-worker.sh <sid> [cwd]" >&2
     exit 2
 fi
+
+started_unix=$(date +%s)
+claude_version=$(claude --version 2>/dev/null | head -1 || true)
+METHODS='["ping","self.describe","methods.list","delegate.run"]'
 
 [ -x "$agorabus" ] || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
@@ -59,6 +70,39 @@ log_event "worker-start sid=$sid"
         continue
     fi
 
+    # Default convention methods (read-only / pure): handle inline.
+    case "$method" in
+    ping)
+        log_event "recv id=$id from=$from method=ping"
+        body=$(jq -nc --arg id "$id" --arg s "$sid" --arg f "$from" \
+                       --argjson now "$(date +%s)" \
+            '{id:$id, from:$s, to:$f, ok:true,
+              result:{pong_unix:$now, session_id:$s}}')
+        reply "$from" "$id" "$body"
+        continue
+        ;;
+    self.describe)
+        log_event "recv id=$id from=$from method=self.describe"
+        body=$(jq -nc --arg id "$id" --arg s "$sid" --arg f "$from" \
+                       --arg cwd "$worker_cwd" --arg ver "$claude_version" \
+                       --argjson started "$started_unix" \
+                       --argjson methods "$METHODS" \
+            '{id:$id, from:$s, to:$f, ok:true,
+              result:{session_id:$s, cwd:$cwd, claude_version:$ver,
+                      started_unix:$started, methods:$methods}}')
+        reply "$from" "$id" "$body"
+        continue
+        ;;
+    methods.list)
+        log_event "recv id=$id from=$from method=methods.list"
+        body=$(jq -nc --arg id "$id" --arg s "$sid" --arg f "$from" \
+                       --argjson methods "$METHODS" \
+            '{id:$id, from:$s, to:$f, ok:true, result:{methods:$methods}}')
+        reply "$from" "$id" "$body"
+        continue
+        ;;
+    esac
+
     if [ "$method" != "delegate.run" ]; then
         log_event "unknown-method id=$id from=$from method=$method"
         body=$(jq -nc --arg id "$id" --arg s "$sid" --arg f "$from" --arg m "$method" \
@@ -89,7 +133,7 @@ log_event "worker-start sid=$sid"
     start_ms=$(date +%s%3N)
     out=$(cd "$cwd" && \
         AGORABUS_DELEGATE_DEPTH=$((${AGORABUS_DELEGATE_DEPTH:-0} + 1)) \
-        timeout "${timeout_secs}s" claude --print --bare \
+        timeout "${timeout_secs}s" claude --print \
             --dangerously-skip-permissions --no-session-persistence \
             --output-format text -- "$prompt" 2>&1)
     rc=$?
