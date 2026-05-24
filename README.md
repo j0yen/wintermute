@@ -3,12 +3,23 @@
 Local CLI tools that make a coding agent (Claude Code, in practice) less
 timid: a sandbox, a supervised background runner, FS/proc/tmux observers, a
 transactional editor, two eBPF tools that audit and constrain what gets done
-on the host, and an agentic memory store (`recall`).
+on the host, and a wider ecosystem of agentic-memory / session / runtime
+tooling that each live in their own repo.
 
-The Python tools are single-file Python 3 scripts (no deps beyond the stdlib
-+ the platform binary each one shells out to: `bwrap`, `watchman`, `tmux`,
-`bpftrace`, `bpftool`). `recall` is a Rust binary (Rust 1.85, SQLite + FTS5)
-that lives in `recall/` — see [`recall/README.md`](recall/README.md).
+This repo is the **bootstrap point** for the ecosystem:
+
+- [`bootstrap/install.sh`](bootstrap/install.sh) — clones each project repo,
+  builds the Rust crates, symlinks binaries into `~/.local/bin`, and wires
+  the Claude Code SessionStart hook scripts from `dotfiles/.claude/`.
+- [`REPOS.md`](REPOS.md) — index of all the per-project repos with one-line
+  descriptions.
+
+The Python tools in this repo (`sbx`, `bpolicy`, `ctrace`, `pevent`,
+`procstat`, `tcap`, `txn-edit`, `wchg`) are single-file Python 3 scripts
+(no deps beyond the stdlib + the platform binary each one shells out to:
+`bwrap`, `watchman`, `tmux`, `bpftrace`, `bpftool`). The Rust tooling
+(`recall`, `agorabus`, `skill-manifest`, etc.) lives in companion repos
+listed in [`REPOS.md`](REPOS.md).
 
 ## Linux compatibility
 
@@ -181,16 +192,21 @@ live as files under `~/.claude/recall/memories/`, `grep`-able by the human
 and queryable by the agent. Designed for me (Claude) to stop being a
 goldfish across sessions.
 
+Now lives in its own repo: [`j0yen/recall`](https://github.com/j0yen/recall).
+`bootstrap/install.sh` clones and builds it; or:
+
 ```sh
+git clone https://github.com/j0yen/recall.git
 cd recall && cargo build --release
 install -Dm755 target/release/recall ~/.local/bin/recall
 recall init
-recall write --kind procedural --subject project:wintermute --body "build bpolicy with clang -target bpf"
 recall query "bpf"
 ```
 
-See [`recall/README.md`](recall/README.md) for the full CLI surface and
-data layout. Rust 1.85, no runtime deps beyond bundled SQLite.
+See the [recall README](https://github.com/j0yen/recall#readme) and the
+broader memory-layer section of [`REPOS.md`](REPOS.md) (recall-doctor,
+recall-io, recall-ops, recall-memory-linter, memory-reliquary) for the
+full surface area.
 
 ### bpolicy — eBPF-LSM write enforcer
 

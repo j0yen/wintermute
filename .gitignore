@@ -3,6 +3,34 @@ vmlinux.h
 __pycache__/
 *.pyc
 
-# recall (Rust)
-recall/target/
-recall/Cargo.lock
+# Ecosystem repos cloned by bootstrap/install.sh. Each is its own
+# github.com/j0yen/<name> repo; this monorepo only ships the bootstrap.
+# Listed explicitly (rather than as a wildcard) so any new top-level
+# additions stay visible until intentionally ignored.
+/agent-pipe/
+/agorabus/
+/autobuilder/
+/autobuilder-metric-harness/
+/claude-self/
+/conversations-zine/
+/daily-receipt/
+/episodic-observer/
+/fsstory/
+/learning-db/
+/letters-we-never-sent/
+/mcp-autotuner/
+/memory-reliquary/
+/mirror/
+/morsel-bake/
+/recall/
+/recall-doctor/
+/recall-io/
+/recall-memory-linter/
+/recall-ops/
+/repo-as-landscape/
+/self-portrait/
+/session-index/
+/session-trace-receipt/
+/skill-manifest/
+/skill-telemetry/
+/tide-chart/
