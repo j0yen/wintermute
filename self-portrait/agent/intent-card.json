@@ -1,0 +1,100 @@
+{
+  "schema": "autobuilder.intent_card.v1",
+  "prd_source": "/home/jsy/projects/autobuilder/PRD-self-portrait.md",
+  "intent_slug": "self-portrait",
+  "root_motivation": "CLAUDE_SELF.md is the negotiated contract between user and agent — the *diffs* are the portrait. Phase 1a extracts every commit's hash/date/diff-hunk/message into structured JSON so downstream rendering passes (Claude reflections, Typst typesetting, A2 print) can consume a stable contract. Until the extractor exists, no later artifact can be built or audited.",
+  "user_persona": "jsy running it against the wintermute CLAUDE_SELF.md (`/home/jsy/wintermute/dotfiles/.claude/CLAUDE_SELF.md` or wherever the file lives in dotfiles). Audience for the JSON: the next pipeline stage (reflection generator) and the human eye spot-checking that diffs round-trip cleanly.",
+  "unfakeable_metric": {
+    "name": "acceptance_tests_passing",
+    "lower_is_better": false,
+    "harness_command": "cargo test --tests 2>&1 | grep -E 'test result: ok' | wc -l",
+    "target": null
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "level": "MUST",
+      "description": "`self-portrait extract --file <repo-relative-path> [--repo <dir>]` emits a single JSON object on stdout: `{file, repo, generated_at, commits: [...]}`. Each commit entry has: hash (full sha), short_hash (7 chars), author_name, author_email, committed_at (RFC3339), subject, body, diff (unified diff hunk for this file across this commit, file headers stripped). Order: oldest commit first.",
+      "test": "tests/acceptance_ac1.rs"
+    },
+    {
+      "id": "AC2",
+      "level": "MUST",
+      "description": "Follows file renames via git's --follow semantics — a commit that renamed the file appears in the commits array, with `diff` containing the rename hunk.",
+      "test": "tests/acceptance_ac2.rs"
+    },
+    {
+      "id": "AC3",
+      "level": "MUST",
+      "description": "Commits that touched the file with a trivial change (no semantic diff after the rename) still appear and their `diff` is included verbatim; the consumer decides whether to collapse them. The extractor does not editorialize.",
+      "test": "tests/acceptance_ac3.rs"
+    },
+    {
+      "id": "AC4",
+      "level": "MUST",
+      "description": "When the file does not exist in the current HEAD but did historically (e.g. it was deleted), the extractor still walks the history — exits 0 with all commits in `commits` and a top-level `\"deleted_at\": \"<RFC3339>\"` field. If the file never existed under any name, exits with code 3 and stderr containing the path and `no commits found`.",
+      "test": "tests/acceptance_ac4.rs"
+    },
+    {
+      "id": "AC5",
+      "level": "MUST",
+      "description": "When `--repo <dir>` points at a non-git path: exit code 2 with stderr containing the path and `not a git repository`.",
+      "test": "tests/acceptance_ac5.rs"
+    },
+    {
+      "id": "AC6",
+      "level": "MUST",
+      "description": "Commit messages with `private: true` in a Markdown-style trailer line (e.g. line `private: true` at column 0) cause the diff hunk for that commit to be redacted to the string `\"[redacted]\"`. The hash/date/author/subject still appear so the timeline is complete. This honours the PRD's privacy clause.",
+      "test": "tests/acceptance_ac6.rs"
+    },
+    {
+      "id": "AC7",
+      "level": "SHOULD",
+      "description": "`--collapse-trivial` collapses commits whose `diff` body, after stripping whitespace/comments, is empty into a single virtual `{hash: \"trivial\", subject: \"N trivial edits\", ...}` adjacent entry; default is no collapse (AC3).",
+      "test": "tests/acceptance_ac7.rs"
+    }
+  ],
+  "scope": [
+    "Walk git log --follow of one file under a repo",
+    "Per-commit: hash, short hash, author name+email, committed_at, subject, body, the file's diff hunk",
+    "Mark deleted-then-revived files via deleted_at field",
+    "Honour private:true trailer in commit message → diff redaction",
+    "Optional --collapse-trivial flag",
+    "Emit single JSON object on stdout"
+  ],
+  "non_goals": [
+    "Reflection generation (LLM-call producing 1–2 sentence per-commit narrative) — Phase 1b",
+    "Typst, paged.js, PDF, SVG, or any rendering",
+    "Glyph generation (procedural or commissioned)",
+    "Multi-file aggregation (one --file per invocation)",
+    "git blame / line-level provenance",
+    "diff prettification / colour markup (consumers decide)",
+    "Cross-repo history join",
+    "Live watching"
+  ],
+  "hard_constraints": {
+    "rust_edition": "2024",
+    "target_kind": "cli",
+    "deny_unsafe": true,
+    "max_deps": 12,
+    "msrv": "1.85"
+  },
+  "five_whys_trace": [
+    {
+      "why": 1,
+      "q": "Why a JSON extractor as Phase 1a, separate from reflection + Typst rendering?",
+      "a": "Because the reflection stage is the only one that requires the model — and it's iterative on taste. Separating the deterministic git walk lets reflections be re-run against a frozen extract, and lets the typesetting be re-run against a frozen extract + reflections, without re-walking git each time."
+    },
+    {
+      "why": 2,
+      "q": "Why include the raw diff verbatim rather than parsed AST or summary?",
+      "a": "Because the print panel shows the diff itself with subtle green/red highlighting — the diff is artwork, not data. A summary would lose the typographic texture that the print is built around."
+    },
+    {
+      "why": 3,
+      "q": "Why honour private:true trailers in this stage rather than a later filter?",
+      "a": "Because privacy is the contract — a redacted diff should never leave this stage in unredacted form, regardless of downstream consumer bugs. Privacy must be enforced at the source of truth."
+    }
+  ],
+  "created_at": "2026-05-24T04:18:00Z"
+}
