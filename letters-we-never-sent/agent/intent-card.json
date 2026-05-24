@@ -1,0 +1,104 @@
+{
+  "schema": "autobuilder.intent_card.v1",
+  "prd_source": "/home/jsy/projects/autobuilder/PRD-letters-we-never-sent.md",
+  "intent_slug": "letters-we-never-sent",
+  "root_motivation": "The monthly draft ritual produces 2-4 letter Markdown files per month in ~/.claude/letters-we-never-sent/<year>/. Phase 1 is the curation tool jsy needs to triage drafts: read, accept/decline/edit, optionally mark `send-for-real`. Without it, drafts accumulate in a directory and the annual binding ritual has no signal for which letters made the cut.",
+  "user_persona": "jsy at the end of each month (or whenever the practice calls), running the curation CLI over ~/.claude/letters-we-never-sent/<year>/ to triage drafts before the annual binding ritual. Audience: jsy himself, alone, in a focused reading session.",
+  "unfakeable_metric": {
+    "name": "acceptance_tests_passing",
+    "lower_is_better": false,
+    "harness_command": "cargo test --tests 2>&1 | grep -E 'test result: ok' | wc -l",
+    "target": null
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "level": "MUST",
+      "description": "`letter list [--root <dir>] [--year <YYYY>] [--state <all|pending|accepted|declined|send-real>]` prints a one-line-per-letter table to stdout: `<filename> <state> <accepted_at|->  <subject-line>`. Default --root = `~/.claude/letters-we-never-sent`. Default --state = `pending`.",
+      "test": "tests/acceptance_ac1.rs"
+    },
+    {
+      "id": "AC2",
+      "level": "MUST",
+      "description": "Each letter is a Markdown file with YAML frontmatter. Recognised frontmatter keys: `recipient` (anonymized, e.g. `the PM`), `month` (YYYY-MM), `state` (one of `pending|accepted|declined|send-real`, default `pending`), `accepted_at` (RFC3339, set when state moves to non-pending), `subject` (the first H1 or filename if absent).",
+      "test": "tests/acceptance_ac2.rs"
+    },
+    {
+      "id": "AC3",
+      "level": "MUST",
+      "description": "`letter accept <filename> [--root <dir>]` rewrites the file's frontmatter to set state=accepted and accepted_at=now(RFC3339). The body content is preserved byte-for-byte after the frontmatter. Exit 0 on success.",
+      "test": "tests/acceptance_ac3.rs"
+    },
+    {
+      "id": "AC4",
+      "level": "MUST",
+      "description": "`letter decline <filename> [--root <dir>]` sets state=declined and accepted_at=now. Same byte-for-byte body preservation. `letter mark-send-real <filename>` sets state=send-real. All three state transitions are idempotent (re-running the same command on the same file is a no-op other than updating accepted_at).",
+      "test": "tests/acceptance_ac4.rs"
+    },
+    {
+      "id": "AC5",
+      "level": "MUST",
+      "description": "Letters without frontmatter, or with malformed YAML, are surfaced in `list` output as state=`(unparseable)` and skipped from state changes (`accept`/`decline` exits 3 with stderr explaining why). The CLI never crashes on malformed input.",
+      "test": "tests/acceptance_ac5.rs"
+    },
+    {
+      "id": "AC6",
+      "level": "MUST",
+      "description": "Filenames are positional arguments; both relative-to-root (`NN.md`) and absolute paths are accepted. Glob patterns (e.g. `2026-05-*.md`) are NOT auto-expanded — the user uses shell globbing for that. Single filename per invocation.",
+      "test": "tests/acceptance_ac6.rs"
+    },
+    {
+      "id": "AC7",
+      "level": "SHOULD",
+      "description": "`letter stats [--root <dir>] [--year <YYYY>]` prints aggregate counts to stdout: `accepted: N, declined: N, pending: N, send-real: N, total: N`. Multi-line, machine-grep-able.",
+      "test": "tests/acceptance_ac7.rs"
+    },
+    {
+      "id": "AC8",
+      "level": "MAY",
+      "description": "`letter open <filename> [--root <dir>]` invokes $EDITOR on the file (so the user can edit in-place during a curation session). Exit 0 if editor exits 0.",
+      "test": "tests/acceptance_ac8.rs"
+    }
+  ],
+  "scope": [
+    "Read/write Markdown files with YAML frontmatter under a root directory",
+    "List letters by year and state",
+    "Mutate state via accept/decline/mark-send-real subcommands",
+    "Preserve body bytes exactly across frontmatter updates",
+    "Aggregate stats per year",
+    "Optional $EDITOR integration"
+  ],
+  "non_goals": [
+    "Draft generation (LLM-call producing letter drafts) — that's the monthly Claude prompt, separate workflow",
+    "Typesetting / PDF / saddle-stitching",
+    "Encryption at rest (the user uses gocryptfs separately if desired)",
+    "Sending actual letters (send-real marks intent; sending is manual)",
+    "Anonymization (drafts arrive already anonymized)",
+    "Cross-year aggregation in stats (single --year)"
+  ],
+  "hard_constraints": {
+    "rust_edition": "2024",
+    "target_kind": "cli",
+    "deny_unsafe": true,
+    "max_deps": 10,
+    "msrv": "1.85"
+  },
+  "five_whys_trace": [
+    {
+      "why": 1,
+      "q": "Why a Phase 1 curation CLI when Phase 0 of the PRD says `monthly Claude prompt; drafts saved as Markdown`?",
+      "a": "Because Phase 0 produces files and Phase 2 typesets them — without Phase 1's accept/decline, the typesetter has no signal for which letters made the cut. The state field on each letter IS the curation result."
+    },
+    {
+      "why": 2,
+      "q": "Why store state in the frontmatter rather than in a sidecar SQLite index?",
+      "a": "Because the letters ARE the artifact — they should be self-describing. A sidecar makes the state easy to lose; frontmatter travels with the file through any future migration (encryption, backup, hand-edit)."
+    },
+    {
+      "why": 3,
+      "q": "Why preserve body bytes exactly?",
+      "a": "Because the user may hand-edit the body in $EDITOR between state transitions — and any rewriting by the curation tool would risk losing whitespace, em-dashes, or other characters the user cared about. The body is sacred."
+    }
+  ],
+  "created_at": "2026-05-24T04:56:00Z"
+}
