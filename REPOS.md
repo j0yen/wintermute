@@ -31,7 +31,7 @@ clones, builds, and wires up everything on a fresh machine.
 
 | Repo | Binary | What it does |
 |---|---|---|
-| [recall](https://github.com/j0yen/recall) | `recall` | Local-first agentic memory: file-backed memories with a keyword/FTS5 index. |
+| [recall](https://github.com/j0yen/recall) | `recall` | Local-first agentic memory for Claude Code: file-backed memories, FTS5 + semantic (BGE-small/fastembed) hybrid index, four hook scripts that wire the braid correlator into a live session. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/recall/main/install.sh \| bash`. |
 | [recall-doctor](https://github.com/j0yen/recall-doctor) | `recall-doctor` | Health checker for the recall store (fsck for memories). |
 | [recall-io](https://github.com/j0yen/recall-io) | `recall-io` | Frontmatter parser + serializer used as the memory file I/O contract. |
 | [recall-ops](https://github.com/j0yen/recall-ops) | `recall-ops` | Bulk ops over the recall store (move/relabel/dedupe). |
