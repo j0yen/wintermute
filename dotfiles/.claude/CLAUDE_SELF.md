@@ -58,6 +58,11 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-25 (build): archived PRD-build-rust-extend.md (commit a4f4e6b).
+  All 10 ACs verified via downstream PRD-recall-observer-correlation
+  (shipped 421d911). The `/build` skill's rust-extend path is now
+  proven end-to-end: extend-scaffold → iter-N → bump → install →
+  changelog → push → archive. Self-mod arc closed.
 - 2026-05-24 (build): shipped kernel tier of agent-tooling arc — `memlog`
   (char-dev compaction log), `provfs` LSM (xattr provenance), `agentns`
   Phase 3+4 (LSM stamping + budget enforcement), all baked into the
