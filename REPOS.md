@@ -64,9 +64,21 @@ patterns are useful, not because they're meant to be reused as-is.
 | [fsstory](https://github.com/j0yen/fsstory) | Filesystem attribution timeline: who-changed-what when a file changes. |
 | [letters-we-never-sent](https://github.com/j0yen/letters-we-never-sent) | Monthly draft-ritual aggregator over `~/.claude/letters/`. |
 | [morsel-bake](https://github.com/j0yen/morsel-bake) | Build helper for the morsel embedded-ML crate. |
-| [provfs](https://github.com/j0yen/provfs) | FUSE-overlay that stamps `user.prov.*` xattrs at write-time (session/tool/turn/intent/history); the data layer fsstory queries. |
+| [provfs](https://github.com/j0yen/provfs) | FUSE-overlay + in-kernel LSM that stamps `user.prov.{session,tool,turn,ts,history}` xattrs at write-time. |
 | [repo-as-landscape](https://github.com/j0yen/repo-as-landscape) | Topographic visualization of a repository (per-file primitives → terrain). |
 | [tide-chart](https://github.com/j0yen/tide-chart) | Glanceable instrument-style view of the laptop's daily rhythm. |
+
+## Kernel
+
+Vendor kernel features that give Claude sessions first-class identity,
+audit trails, and provenance metadata at the OS layer. Shipped as a
+parallel-install Arch kernel so the stock `linux` package stays untouched.
+
+| Repo | What it does |
+|---|---|
+| [memlog](https://github.com/j0yen/memlog) | /dev/memlog kernel char device + per-uid ring for LLM context-compaction audit records. |
+| [agentns](https://github.com/j0yen/agentns) | CLONE_NEWAGENT — 8th Linux namespace type for per-session identity, counters, and budget enforcement. |
+| [wintermute-kernel](https://github.com/j0yen/wintermute-kernel) | Arch PKGBUILD for the parallel-install linux-wintermute kernel (agentns + memlog + provfs LSM baked in). |
 
 ## License
 
