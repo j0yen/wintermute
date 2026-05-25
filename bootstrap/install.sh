@@ -50,10 +50,14 @@ done
 # `-` means: no binary to symlink (library-only crate or non-cargo).
 repos=(
     "agent-pipe apipe"
+    "agentsh -"
     "agorabus agorabus"
+    "ambient ambient"
     "autobuilder autobuilder"
     "autobuilder-metric-harness -"
+    "baton baton"
     "claude-self claude-self"
+    "confidant confidant"
     "conversations-zine zine"
     "daily-receipt -"
     "episodic-observer episode"
@@ -64,6 +68,7 @@ repos=(
     "memory-reliquary reliquary"
     "mirror mirror"
     "morsel-bake morsel-bake"
+    "provfs provfs"
     "recall recall"
     "recall-doctor recall-doctor"
     "recall-io recall-io"
@@ -76,6 +81,14 @@ repos=(
     "skill-manifest skill"
     "skill-telemetry spool"
     "tide-chart -"
+)
+
+# Per-repo extra wiring after clone (idempotent). Each entry is "<repo>:<script>"
+# where <script> is a path inside the cloned repo to run from the repo root.
+# Use for projects that ship their own install.sh (shell plugins, etc.) that the
+# bootstrap can't infer from a Cargo binary alone.
+extra_install=(
+    "agentsh:install.sh"
 )
 
 step() { printf '\n== %s ==\n' "$*"; }
@@ -151,6 +164,23 @@ if [ "$no_build" = "0" ]; then
         note "$bin -> $src"
     done
 fi
+
+step "Running per-repo install.sh scripts"
+for entry in "${extra_install[@]}"; do
+    repo="${entry%%:*}"
+    script="${entry#*:}"
+    target="$WINTERMUTE_ROOT/$repo"
+    if [ ! -d "$target" ]; then
+        note "skip $repo (not cloned)"
+        continue
+    fi
+    if [ ! -x "$target/$script" ]; then
+        note "skip $repo (no executable $script)"
+        continue
+    fi
+    note "run $repo/$script"
+    do_or_say "(cd '$target' && './$script')"
+done
 
 if [ "$no_hooks" = "0" ]; then
     step "Wiring Claude Code dotfiles into $CLAUDE_DIR"
