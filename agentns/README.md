@@ -88,8 +88,8 @@ patch genuinely conflicts:
 | 0    | done   | `task_struct->nsproxy->agent_ns`, `/proc/$PID/agent_session`, default init NS for unmodified tasks |
 | 1    | done   | per-cpu counters, prctl interface (`PR_GET_AGENT_SESSION_ID`, `PR_SET_AGENT_INTENT_TAG`, `PR_GET_AGENT_COUNTERS`, `PR_SET_AGENT_BUDGET_LIMITS`), `agent_session_end` tracepoint with counters |
 | 2    | done   | tracepoints (`agent_ns:agent_session_start/_end/_intent_set`) exposed at `/sys/kernel/tracing/events/agent_ns/` |
-| 3    | deferred | LSM stamping xattrs — lives in [provfs/](../provfs/) and reads `current->nsproxy->agent_ns->session_id` |
-| 4    | deferred | budget-limit enforcement (signal/kill on overage). The limits are stored today but only the 24h max-lifetime reaper acts on overruns |
+| 3    | done   | LSM stamping xattrs — lives in [`provfs/lsm/`](../provfs/lsm/), reads `current->nsproxy->agent_ns->session_id` when `CONFIG_AGENT_NS=y`, falls back to `comm:pid:uid` otherwise |
+| 4    | done   | budget-limit enforcement: reaper checks `ns->budget.{max_syscalls,max_write_bytes,max_elapsed_ns}` every 60s and performs `action` (0=log / 1=SIGTERM / 2=SIGKILL). See `tests/test_budget_enforce.sh` |
 
 ## Tests
 

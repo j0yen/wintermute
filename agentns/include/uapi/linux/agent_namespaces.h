@@ -11,13 +11,11 @@
 #include <linux/types.h>
 
 /*
- * CLONE_NEWAGENT is allocated from the high bit range, intentionally above
- * the currently-used CLONE_* set so it round-trips through clone3().
- *
- * Bit 0x40000000 was historically CLONE_NEWUSER pre-3.8 and is no longer
- * in use anywhere in mainline. We claim it for vendor-fork purposes.
+ * CLONE_NEWAGENT lives in <uapi/linux/sched.h> — see that header for the
+ * authoritative bit. It is *not* re-defined here to avoid drift; we claim
+ * 0x00000100 (an unused lower-pool bit) rather than the legacy 0x40000000
+ * CLONE_NEWNET alias that early drafts of this PRD proposed.
  */
-#define CLONE_NEWAGENT			0x40000000
 
 /* prctl options exposed under PR_AGENT_* — chosen from the high-end pool */
 #define PR_AGENT_BASE			0x41544E53  /* "ATNS" */

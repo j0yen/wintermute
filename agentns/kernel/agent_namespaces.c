@@ -18,6 +18,7 @@
  */
 
 #include <linux/agent_namespaces.h>
+#include <uapi/linux/agent_namespaces.h>
 #include <linux/cred.h>
 #include <linux/err.h>
 #include <linux/jiffies.h>
@@ -53,9 +54,14 @@ struct agent_ns_link {
 static struct kmem_cache *agent_ns_cache;
 static struct kmem_cache *agent_ns_link_cache;
 
-/* init ns: bytes are all zero (reserved "no session"); intent_tag empty. */
+/* init ns: bytes are all zero (reserved "no session"); intent_tag empty.
+ * The ns_common substruct is zero-initialized — agentns is not in upstream's
+ * `_Generic` ns-type tables, so we cannot use the NS_COMMON_INIT macro. The
+ * init NS is only ever a sentinel; it never appears in /proc/$PID/ns/agent
+ * because the proc symlink filters it out. __ns_common_init is called from
+ * agentns_init() for the dynamic init_inum slot.
+ */
 struct agent_namespace init_agent_ns = {
-	.ns		= { .ops = &agentns_operations },
 	.kref		= KREF_INIT(2),
 	.user_ns	= &init_user_ns,
 	.intent_lock	= __SPIN_LOCK_UNLOCKED(init_agent_ns.intent_lock),
@@ -69,12 +75,12 @@ static int agentns_install(struct nsset *nsset, struct ns_common *ns);
 static struct user_namespace *agentns_owner(struct ns_common *ns);
 
 const struct proc_ns_operations agentns_operations = {
-	.name	= "agent",
-	.type	= CLONE_NEWAGENT,
-	.get	= agentns_get,
-	.put	= agentns_put,
+	.name	 = "agent",
+	.real_ns_name = "agent",
+	.get	 = agentns_get,
+	.put	 = agentns_put,
 	.install = agentns_install,
-	.owner	= agentns_owner,
+	.owner	 = agentns_owner,
 };
 EXPORT_SYMBOL_GPL(agentns_operations);
 
@@ -140,15 +146,19 @@ static struct agent_namespace *create_agent_ns(struct user_namespace *user_ns,
 	if (!ns)
 		return ERR_PTR(-ENOMEM);
 
-	err = ns_alloc_inum(&ns->ns);
+	/*
+	 * 7.0+ ns_common: __ns_common_init handles ns_type, ops, refcount,
+	 * tree-node init, and inum allocation in one shot (inum=0 means
+	 * "allocate a fresh one").
+	 */
+	err = __ns_common_init(&ns->ns, CLONE_NEWAGENT, &agentns_operations, 0);
 	if (err)
 		goto fail_inum;
 
-	ns->ns.ops = &agentns_operations;
 	kref_init(&ns->kref);
 	ns->user_ns = get_user_ns(user_ns);
 	spin_lock_init(&ns->intent_lock);
-	ns->created_ns = ktime_get_boot_ns();
+	ns->created_ns = ktime_get_boottime_ns();
 	atomic_set(&ns->live_tasks, 0);
 
 	ns->counters = alloc_percpu(struct agent_ns_counters_pcp);
@@ -174,7 +184,7 @@ fail_live:
 	free_percpu(ns->counters);
 fail_counters:
 	put_user_ns(ns->user_ns);
-	ns_free_inum(&ns->ns);
+	__ns_common_free(&ns->ns);
 fail_inum:
 	kmem_cache_free(agent_ns_cache, ns);
 	return ERR_PTR(err);
@@ -211,7 +221,7 @@ void agent_ns_snapshot(struct agent_namespace *ns,
 		out->unlink_count   += READ_ONCE(c->unlink_count);
 		out->fork_count     += READ_ONCE(c->fork_count);
 	}
-	out->elapsed_ns = ktime_get_boot_ns() - ns->created_ns;
+	out->elapsed_ns = ktime_get_boottime_ns() - ns->created_ns;
 }
 EXPORT_SYMBOL_GPL(agent_ns_snapshot);
 
@@ -226,7 +236,7 @@ void free_agent_ns(struct kref *kref)
 	remove_from_live_list(ns);
 	free_percpu(ns->counters);
 	put_user_ns(ns->user_ns);
-	ns_free_inum(&ns->ns);
+	__ns_common_free(&ns->ns);
 	kmem_cache_free(agent_ns_cache, ns);
 }
 EXPORT_SYMBOL_GPL(free_agent_ns);
@@ -259,45 +269,54 @@ static __always_inline struct agent_ns_counters_pcp *cur_counters(void)
 	return this_cpu_ptr(ns->counters);
 }
 
+/*
+ * cur_counters() already calls this_cpu_ptr(), so the returned pointer is a
+ * regular dereferenceable pointer to the local CPU's slot. We can do plain
+ * arithmetic on its members; wrap in preempt_disable/enable to prevent
+ * migration between obtaining the pointer and updating it.
+ */
+#define AGENT_NS_BUMP(field, expr)					\
+	do {								\
+		struct agent_ns_counters_pcp *__c;			\
+		preempt_disable();					\
+		__c = cur_counters();					\
+		if (__c) (__c->field) expr;				\
+		preempt_enable();					\
+	} while (0)
+
 void agent_ns_count_syscall(void)
 {
-	struct agent_ns_counters_pcp *c = cur_counters();
-	if (c) this_cpu_inc(c->total_syscalls);
+	AGENT_NS_BUMP(total_syscalls, ++);
 }
 EXPORT_SYMBOL_GPL(agent_ns_count_syscall);
 
 void agent_ns_count_openat(void)
 {
-	struct agent_ns_counters_pcp *c = cur_counters();
-	if (c) this_cpu_inc(c->openat_count);
+	AGENT_NS_BUMP(openat_count, ++);
 }
 EXPORT_SYMBOL_GPL(agent_ns_count_openat);
 
 void agent_ns_count_write(size_t bytes)
 {
-	struct agent_ns_counters_pcp *c = cur_counters();
-	if (c) this_cpu_add(c->write_bytes, bytes);
+	AGENT_NS_BUMP(write_bytes, += bytes);
 }
 EXPORT_SYMBOL_GPL(agent_ns_count_write);
 
 void agent_ns_count_connect(void)
 {
-	struct agent_ns_counters_pcp *c = cur_counters();
-	if (c) this_cpu_inc(c->connect_count);
+	AGENT_NS_BUMP(connect_count, ++);
 }
 EXPORT_SYMBOL_GPL(agent_ns_count_connect);
 
 void agent_ns_count_unlink(void)
 {
-	struct agent_ns_counters_pcp *c = cur_counters();
-	if (c) this_cpu_inc(c->unlink_count);
+	AGENT_NS_BUMP(unlink_count, ++);
 }
 EXPORT_SYMBOL_GPL(agent_ns_count_unlink);
 
 void agent_ns_count_fork(void)
 {
-	struct agent_ns_counters_pcp *c = cur_counters();
-	if (c) this_cpu_inc(c->fork_count);
+	AGENT_NS_BUMP(fork_count, ++);
 }
 EXPORT_SYMBOL_GPL(agent_ns_count_fork);
 
@@ -413,9 +432,9 @@ ssize_t agent_ns_proc_counters_show(struct seq_file *m, void *v)
 EXPORT_SYMBOL_GPL(agent_ns_proc_counters_show);
 
 /* ---- prctl handlers ---- */
-int agent_ns_prctl(struct task_struct *me, int option,
-		   unsigned long arg2, unsigned long arg3,
-		   unsigned long arg4, unsigned long arg5)
+long agent_ns_prctl(struct task_struct *me, int option,
+		    unsigned long arg2, unsigned long arg3,
+		    unsigned long arg4, unsigned long arg5)
 {
 	struct agent_namespace *ns;
 	int ret = 0;
@@ -511,48 +530,113 @@ int agent_ns_prctl(struct task_struct *me, int option,
 }
 EXPORT_SYMBOL_GPL(agent_ns_prctl);
 
-/* ---- max-lifetime reaper ---- */
+/* ---- max-lifetime reaper + budget enforcement (Phase 4) ---- */
 static void reaper_work_fn(struct work_struct *w);
 static DECLARE_DELAYED_WORK(reaper_work, reaper_work_fn);
 
-static void kill_ns_tasks(struct agent_namespace *ns)
+static void signal_ns_tasks(struct agent_namespace *ns, int sig)
 {
 	struct task_struct *p;
-	struct agent_ns_counters_snapshot snap;
-	agent_ns_snapshot(ns, &snap);
-	pr_info("agent_ns: reaping NS session %16phN (age %llu ns) — killing live tasks\n",
-		ns->session_id.bytes, snap.elapsed_ns);
 
 	rcu_read_lock();
 	for_each_process(p) {
-		if (p->nsproxy && p->nsproxy->agent_ns == ns) {
-			send_sig(SIGKILL, p, 1);
-		}
+		if (p->nsproxy && p->nsproxy->agent_ns == ns)
+			send_sig(sig, p, 1);
 	}
 	rcu_read_unlock();
+}
+
+static void kill_ns_tasks(struct agent_namespace *ns)
+{
+	struct agent_ns_counters_snapshot snap;
+
+	agent_ns_snapshot(ns, &snap);
+	pr_info("agent_ns: reaping NS session %16phN (age %llu ns) — killing live tasks\n",
+		ns->session_id.bytes, snap.elapsed_ns);
+	signal_ns_tasks(ns, SIGKILL);
+}
+
+/*
+ * Phase 4: budget enforcement. Compare current per-NS counters against the
+ * configured budget; if any limit is exceeded, perform the configured action.
+ * Called from the reaper kworker (every 60s) — coarse-grained on purpose so
+ * the hot syscall path stays lock-free.
+ *
+ * action: 0 = log only; 1 = SIGTERM; 2 = SIGKILL.
+ *
+ * Returns true if the NS was acted upon (so the caller can skip the
+ * separate lifetime check for the same iteration).
+ */
+static bool enforce_budget(struct agent_namespace *ns, u64 now)
+{
+	struct agent_ns_counters_snapshot snap;
+	u64 max_sc, max_wb, max_el;
+	u32 action;
+	const char *reason = NULL;
+
+	max_sc = READ_ONCE(ns->budget.max_syscalls);
+	max_wb = READ_ONCE(ns->budget.max_write_bytes);
+	max_el = READ_ONCE(ns->budget.max_elapsed_ns);
+	action = READ_ONCE(ns->budget.action);
+
+	if (!max_sc && !max_wb && !max_el)
+		return false;
+
+	agent_ns_snapshot(ns, &snap);
+
+	if (max_sc && snap.total_syscalls > max_sc)
+		reason = "max_syscalls";
+	else if (max_wb && snap.write_bytes > max_wb)
+		reason = "max_write_bytes";
+	else if (max_el && snap.elapsed_ns > max_el)
+		reason = "max_elapsed_ns";
+
+	if (!reason)
+		return false;
+
+	switch (action) {
+	case 1:
+		pr_warn("agent_ns: budget %s exceeded on session %16phN (syscalls=%llu write=%llu elapsed_ns=%llu) — SIGTERM\n",
+			reason, ns->session_id.bytes, snap.total_syscalls,
+			snap.write_bytes, snap.elapsed_ns);
+		signal_ns_tasks(ns, SIGTERM);
+		return true;
+	case 2:
+		pr_warn("agent_ns: budget %s exceeded on session %16phN (syscalls=%llu write=%llu elapsed_ns=%llu) — SIGKILL\n",
+			reason, ns->session_id.bytes, snap.total_syscalls,
+			snap.write_bytes, snap.elapsed_ns);
+		signal_ns_tasks(ns, SIGKILL);
+		return true;
+	default:
+		pr_info("agent_ns: budget %s exceeded on session %16phN (syscalls=%llu write=%llu elapsed_ns=%llu) — log only\n",
+			reason, ns->session_id.bytes, snap.total_syscalls,
+			snap.write_bytes, snap.elapsed_ns);
+		return false;
+	}
 }
 
 static void reaper_work_fn(struct work_struct *w)
 {
 	struct agent_ns_link *l, *tmp;
-	u64 now = ktime_get_boot_ns();
+	u64 now = ktime_get_boottime_ns();
 	u64 max_ns;
 
 	if (!READ_ONCE(sysctl_agent_ns_enabled))
 		goto reschedule;
 
 	max_ns = (u64)READ_ONCE(sysctl_agent_ns_max_lifetime) * NSEC_PER_SEC;
-	if (!max_ns)
-		goto reschedule;
 
 	spin_lock(&agent_ns_list_lock);
 	list_for_each_entry_safe(l, tmp, &agent_ns_list, node) {
 		struct agent_namespace *ns = l->ns;
-		if ((now - ns->created_ns) > max_ns) {
-			spin_unlock(&agent_ns_list_lock);
+		bool acted;
+
+		spin_unlock(&agent_ns_list_lock);
+		acted = enforce_budget(ns, now);
+		if (!acted && max_ns && (now - ns->created_ns) > max_ns) {
 			kill_ns_tasks(ns);
-			spin_lock(&agent_ns_list_lock);
 		}
+		spin_lock(&agent_ns_list_lock);
 	}
 	spin_unlock(&agent_ns_list_lock);
 
@@ -593,10 +677,11 @@ static int __init agent_ns_init(void)
 	agent_ns_link_cache = KMEM_CACHE(agent_ns_link, SLAB_PANIC | SLAB_ACCOUNT);
 
 	/* set init_agent_ns inum so /proc/$PID/ns/agent for init tasks resolves */
-	if (ns_alloc_inum(&init_agent_ns.ns))
-		pr_warn("agent_ns: failed to allocate init NS inum\n");
+	if (__ns_common_init(&init_agent_ns.ns, CLONE_NEWAGENT,
+			     &agentns_operations, 0))
+		pr_warn("agent_ns: failed to init init NS ns_common\n");
 	init_agent_ns.counters = alloc_percpu(struct agent_ns_counters_pcp);
-	init_agent_ns.created_ns = ktime_get_boot_ns();
+	init_agent_ns.created_ns = ktime_get_boottime_ns();
 
 	register_sysctl_init("kernel/agent_ns", agent_ns_sysctls);
 	schedule_delayed_work(&reaper_work, HZ * 60);

@@ -58,6 +58,21 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-24 (build): shipped kernel tier of agent-tooling arc — `memlog`
+  (char-dev compaction log), `provfs` LSM (xattr provenance), `agentns`
+  Phase 3+4 (LSM stamping + budget enforcement), all baked into the
+  parallel-install `linux-wintermute` kernel package at
+  `~/wintermute/wintermute-kernel/pkg/`. Builds against Arch linux
+  7.0.10-arch1. Drafted the inline-edits pattern (`apply-agentns.py`:
+  anchored idempotent insertions in lieu of unified diffs) and a new
+  `build_target: kernel-extend` route in `/build`. /dream learned the
+  three new primitives; /self-review learned to check them after boot.
+  Awaiting boot validation.
+- 2026-05-25 (build): extended recall v0.4.0→0.4.1 from
+  PRD-recall-observer-correlation.md (codename *braid*). First end-to-end
+  use of the new `/build` rust-extend path (drafted same session as
+  PRD-build-rust-extend.md). Two hooks rewritten, CHANGELOG.md created,
+  installed binary refreshed, pushed to j0yen/recall.
 - 2026-05-22 (Claude, seed): initial draft from session observations.
   Voice / defaults / boundaries pulled from existing recall feedback
   memories; "things I keep getting wrong" and "aspirations" are new

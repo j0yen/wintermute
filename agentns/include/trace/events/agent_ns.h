@@ -27,7 +27,7 @@ TRACE_EVENT(agent_session_start,
 	TP_fast_assign(
 		memcpy(__entry->sid, id->bytes, AGENT_NS_ID_BYTES);
 		memcpy(__entry->psid, parent_id->bytes, AGENT_NS_ID_BYTES);
-		__assign_str(intent, intent_tag ? intent_tag : "");
+		__assign_str(intent);
 		__entry->root_pid = root_pid;
 	),
 
@@ -88,7 +88,7 @@ TRACE_EVENT(agent_intent_set,
 
 	TP_fast_assign(
 		memcpy(__entry->sid, id->bytes, AGENT_NS_ID_BYTES);
-		__assign_str(intent, intent_tag ? intent_tag : "");
+		__assign_str(intent);
 	),
 
 	TP_printk("session_id=%16phN intent=%s",

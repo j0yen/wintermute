@@ -67,6 +67,7 @@ struct agent_namespace {
 };
 
 extern struct agent_namespace init_agent_ns;
+extern const struct proc_ns_operations agentns_operations;
 
 #ifdef CONFIG_AGENT_NS
 
@@ -110,6 +111,10 @@ extern unsigned int sysctl_agent_ns_max_lifetime;
 
 /* task hook called from do_exit */
 void agent_ns_task_exit(struct task_struct *tsk);
+
+/* prctl PR_AGENT_* dispatcher */
+long agent_ns_prctl(struct task_struct *me, int option, unsigned long arg2,
+		    unsigned long arg3, unsigned long arg4, unsigned long arg5);
 
 /* reaper for the max-lifetime safety net */
 void agent_ns_reaper_kick(void);
