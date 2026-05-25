@@ -11,7 +11,7 @@ clones, builds, and wires up everything on a fresh machine.
 
 | Repo | Binary | What it does |
 |---|---|---|
-| [autobuilder](https://github.com/j0yen/autobuilder) | `autobuilder` | PRD-driven Rust code generation pipeline with intent-cards, an iterate-and-prove loop, and a 25-receipt release gate. |
+| [autobuilder](https://github.com/j0yen/autobuilder) | `autobuilder` | Claude Code skill + Rust companion binary that turns a PRD into a vetted Rust project — intent-cards, iterate-and-prove loop, 25-receipt release gate. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/autobuilder/main/skill/install.sh \| bash`. |
 | [autobuilder-metric-harness](https://github.com/j0yen/autobuilder-metric-harness) | — | Unfakeable-scalar metric collector the autobuilder loop polls each iteration. |
 | [learning-db](https://github.com/j0yen/learning-db) | — | Lessons-learned database used by autobuilder to seed the next slice with past mistakes. |
 
