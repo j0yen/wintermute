@@ -6,6 +6,11 @@
 # memories (how I, Claude, work in this environment). The output goes
 # into the model's context at the start of each session.
 #
+# v0.6.1 weather: when session_id is available (read from stdin JSON's
+# .session_id, or $CLAUDE_SESSION_ID), the surfaced memory IDs are
+# appended to $RECALL_WEATHER_DIR/<sid>/recalled.json so the Stop hook
+# can implicit-accept them (PRD-recall-outcome-feedback AC2).
+#
 # Silent if recall is not installed or the store is empty.
 
 set -uo pipefail
@@ -13,9 +18,22 @@ set -uo pipefail
 RECALL_BIN="${RECALL_BIN:-$HOME/.local/bin/recall}"
 [ -x "$RECALL_BIN" ] || exit 0
 
+JQ="${JQ:-/usr/sbin/jq}"
+sid=""
+if [ -x "$JQ" ] && [ ! -t 0 ]; then
+    raw="$(cat - 2>/dev/null || true)"
+    if [ -n "$raw" ]; then
+        sid="$("$JQ" -r '.session_id // empty' <<<"$raw" 2>/dev/null || true)"
+    fi
+fi
+sid="${sid:-${CLAUDE_SESSION_ID:-}}"
+
 cwd="${CLAUDE_PROJECT_DIR:-$PWD}"
 project="$(basename "$cwd")"
 limit="${RECALL_SESSION_LIMIT:-8}"
+
+# weather: accumulate every id emitted so the Stop hook can auto-accept.
+surfaced_ids=""
 
 # Extract the markdown body from `recall show <id>` (everything after the
 # closing `---` of the frontmatter), and squash to one line.
@@ -35,6 +53,7 @@ emit_section() {
   esac
   ids="$(printf '%s\n' "$out" | awk '{print $1}')"
   [ -z "$ids" ] && return 0
+  surfaced_ids="${surfaced_ids}${ids}"$'\n'
   printf '\n%s\n' "$header"
   while IFS= read -r id; do
     [ -z "$id" ] && continue
@@ -54,3 +73,16 @@ printf 'recall: relevant memories for this session\n'
 emit_section "user"             "user:"
 emit_section "project:$project" "project:$project:"
 emit_section "self"             "self:"
+
+# weather: write the surfaced IDs so the Stop hook can implicit-accept.
+if [ -n "$sid" ] && [ -x "$JQ" ] && [ -n "${surfaced_ids// /}" ]; then
+    weather_dir="${RECALL_WEATHER_DIR:-$HOME/.cache/recall-weather}/$sid"
+    if mkdir -p "$weather_dir" 2>/dev/null; then
+        # De-dup, drop blanks, JSON-array-ify.
+        printf '%s' "$surfaced_ids" \
+            | awk 'NF && !seen[$0]++' \
+            | "$JQ" -R . \
+            | "$JQ" -s . \
+            > "$weather_dir/recalled.json" 2>/dev/null || true
+    fi
+fi
