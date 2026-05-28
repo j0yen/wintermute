@@ -58,6 +58,7 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-27 (build): rebuilt j0yen/confidant from PRD-cadence-bind-confidant.md via /autobuilder (replaced hand-built scaffold slice)
 - 2026-05-27 (build): rebuilt j0yen/cradle from PRD-cradle.md via /autobuilder (depends on morsel v0.1)
 - 2026-05-27 (build): rebuilt j0yen/ambient from PRD-ambient-compositions.md via /autobuilder (replaced hand-built scaffold slice)
 - 2026-05-28 (build): shipped j0yen/wintermute-dialog from PRD-wintermute-dialog.md

@@ -61,7 +61,7 @@ patterns are useful, not because they're meant to be reused as-is.
 | Repo | What it does |
 |---|---|
 | [ambient](https://github.com/j0yen/ambient) | Telemetry-driven parameter orchestrator that maps laptop signals (ctrace/wchg/git/builds) to cues for a generative ambient piece. |
-| [confidant](https://github.com/j0yen/confidant) | Weekly letter composer + e-ink PNG renderer (400×300) for a desk-side RPi Zero device. |
+| [confidant](https://github.com/j0yen/confidant) | Weekly letter composer + e-ink PNG renderer (400×300) for a desk-side RPi Zero device. v0.2 binds to the cadence substrate: reads `daily` records as intake and writes a `weekly` record per emitted letter. |
 | [conversations-zine](https://github.com/j0yen/conversations-zine) | Quarterly zine moment-extractor: pulls memorable lines from Claude conversation logs. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/conversations-zine/main/install.sh \| bash`. |
 | [daily-receipt](https://github.com/j0yen/daily-receipt) | Deterministic Rust core for the Daily Receipt art project (one-day-on-a-page printable). One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/daily-receipt/main/install.sh \| bash`. |
 | [fsstory](https://github.com/j0yen/fsstory) | Filesystem attribution timeline: who-changed-what when a file changes. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/fsstory/main/install.sh \| bash`. |
