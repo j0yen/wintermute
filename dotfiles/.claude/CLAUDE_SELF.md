@@ -58,6 +58,13 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-28 (build): shipped j0yen/wintermute-brain from PRD-wintermute-brain.md
+  (iter-18, HEAD 918a3d2). wm-publish created repo + pushed all 17 prior iters'
+  commits cleanly. cargo test --release --lib 145/145 green at HEAD; stage4
+  cargo deny bans/licenses/sources clean (iter-17). NOT archived yet — README +
+  REPOS.md queued for next tick per one-action-per-tick rule; AC1-4/8 need live
+  brain-loop harness (Anthropic key + recall daemon + agorabus), AC5/6/7
+  unit-paired since iter-14.
 - 2026-05-27 (build): rebuilt j0yen/confidant from PRD-cadence-bind-confidant.md via /autobuilder (replaced hand-built scaffold slice)
 - 2026-05-27 (build): rebuilt j0yen/cradle from PRD-cradle.md via /autobuilder (depends on morsel v0.1)
 - 2026-05-27 (build): rebuilt j0yen/ambient from PRD-ambient-compositions.md via /autobuilder (replaced hand-built scaffold slice)
