@@ -13,6 +13,7 @@ clones, builds, and wires up everything on a fresh machine.
 |---|---|---|
 | [autobuilder](https://github.com/j0yen/autobuilder) | `autobuilder` | Claude Code skill + Rust companion binary that turns a PRD into a vetted Rust project — intent-cards, iterate-and-prove loop, 25-receipt release gate. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/autobuilder/main/skill/install.sh \| bash`. |
 | [autobuilder-metric-harness](https://github.com/j0yen/autobuilder-metric-harness) | — | Unfakeable-scalar metric collector the autobuilder loop polls each iteration. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/autobuilder-metric-harness/main/install.sh \| bash`. |
+| [cradle](https://github.com/j0yen/cradle) | `cradle` | Self-trained-model pipeline: harvest labeled data from Claude transcripts, orchestrate train (Python shellout) + bake (deferred — see PRD-cradle-bake-integration.md) into Rust crates via [morsel](https://github.com/j0yen/morsel). v0.1 ships harvest + features + train orchestration. |
 | [learning-db](https://github.com/j0yen/learning-db) (aka `database0`) | — | Educational, configurable DBMS — every subsystem (buffer pool, indexes, joins, MVCC) is a swappable implementation. Companion to CMU 15-445/645. TypeScript / pnpm workspace; see the repo README for install. |
 
 ## Agent runtime
@@ -65,6 +66,7 @@ patterns are useful, not because they're meant to be reused as-is.
 | [daily-receipt](https://github.com/j0yen/daily-receipt) | Deterministic Rust core for the Daily Receipt art project (one-day-on-a-page printable). One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/daily-receipt/main/install.sh \| bash`. |
 | [fsstory](https://github.com/j0yen/fsstory) | Filesystem attribution timeline: who-changed-what when a file changes. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/fsstory/main/install.sh \| bash`. |
 | [letters-we-never-sent](https://github.com/j0yen/letters-we-never-sent) | Monthly draft-ritual aggregator over `~/.claude/letters/`. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/letters-we-never-sent/main/install.sh \| bash`. |
+| [morsel](https://github.com/j0yen/morsel) | Embeddable inference primitives for tiny neural networks in Rust (Linear, Sigmoid, Tanh, ReLU, Softmax, LSTM, Argmax). Allocation-free, deterministic, safe-Rust. The library half of the morsel / morsel-bake pair; weights are baked into source by morsel-bake. |
 | [morsel-bake](https://github.com/j0yen/morsel-bake) | Build helper for the morsel embedded-ML crate. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/morsel-bake/main/install.sh \| bash`. |
 | [provfs](https://github.com/j0yen/provfs) | FUSE-overlay + in-kernel LSM that stamps `user.prov.{session,tool,turn,ts,history}` xattrs at write-time. |
 | [repo-as-landscape](https://github.com/j0yen/repo-as-landscape) | Topographic visualization of a repository (per-file primitives → terrain). One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/repo-as-landscape/main/install.sh \| bash`. |
@@ -95,6 +97,7 @@ agorabus.
 | [wintermute-tts](https://github.com/j0yen/wintermute-tts) | `wm-tts` | Text-to-speech daemon: Piper CPU-local primary, ElevenLabs opt-in cloud streaming, agorabus-driven, voicepack-based. |
 | [wintermute-stt](https://github.com/j0yen/wintermute-stt) | `wm-stt` | Speech-to-text daemon: whisper.cpp via whisper-rs (feature-gated), agorabus subscribe on `wm.audio.speech.*`, confidence-thresholded `wm.stt.{final,uncertain}` emits. |
 | [wintermute-audio](https://github.com/j0yen/wintermute-audio) | `wm-audio` | Microphone pipeline daemon: PipeWire AEC + NoiseTorch + microWakeWord + Silero VAD; one canonical mic capture fans out PCM on UDS and publishes `wm.audio.{wake,speech.*,mute,unmute}` on agorabus. |
+| [wintermute-dialog](https://github.com/j0yen/wintermute-dialog) | `wm-dialog` | Dialog FSM daemon: wake/barge-in/confirm/child-lock orchestration; subscribes `wm.audio.*`/`wm.stt.*`/`wm.brain.*`, publishes `wm.dialog.{tts.{speak,cancel},state,brain.request,confirm.{granted,denied},audio.{mute,unmute}}` with 200ms barge-in/mute budgets. |
 
 ## License
 

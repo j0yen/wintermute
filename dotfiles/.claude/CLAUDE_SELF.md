@@ -58,6 +58,16 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-27 (build): rebuilt j0yen/cradle from PRD-cradle.md via /autobuilder (depends on morsel v0.1)
+- 2026-05-27 (build): rebuilt j0yen/ambient from PRD-ambient-compositions.md via /autobuilder (replaced hand-built scaffold slice)
+- 2026-05-28 (build): shipped j0yen/wintermute-dialog from PRD-wintermute-dialog.md
+  (iter-16, HEAD 6b0eaea). Dual licenses committed pre-publish, then first
+  wm-publish invocation created repo + pushed cleanly. All 7 ACs paired with
+  passing tests (AC1 barge-in <200ms, AC2 STT-uncertain re-prompt, AC3 verbal
+  confirm yes/no, AC4 mute/unmute <200ms, AC5 10-scenario child-lock matrix,
+  AC6 live-daemon snapshot file, AC7 50-turn soak). cargo test --release --lib
+  + ac7_soak + acceptance + proptest 68/68 green. REPOS.md row added under
+  "## Wintermute fleet" after wintermute-audio. Ready for archive.
 - 2026-05-28 (build): shipped j0yen/wintermute-stt from PRD-wintermute-stt.md
   (iter-15, HEAD 35c6d82). 8-tick classifier-block streak (iter-11..14) broken
   on first wm-publish invocation. README/LICENSEs/install.sh already in place
