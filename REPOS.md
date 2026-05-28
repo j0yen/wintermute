@@ -93,6 +93,7 @@ agorabus.
 | [wintermute-bootstrap](https://github.com/j0yen/wintermute-bootstrap) | `wm-bootstrap` | First-boot caregiver setup web server — mDNS-announced HTTP form that writes day-1 env config and hands off to wintermute.target. |
 | [wintermute-platform](https://github.com/j0yen/wintermute-platform) | `wmd-init`, `wm` | Autologin + systemd user target + Rust supervisor (wmd-init) and CLI (wm) — load-bearing scaffold under which the rest of Fleet 1 runs. |
 | [wintermute-tts](https://github.com/j0yen/wintermute-tts) | `wm-tts` | Text-to-speech daemon: Piper CPU-local primary, ElevenLabs opt-in cloud streaming, agorabus-driven, voicepack-based. |
+| [wintermute-stt](https://github.com/j0yen/wintermute-stt) | `wm-stt` | Speech-to-text daemon: whisper.cpp via whisper-rs (feature-gated), agorabus subscribe on `wm.audio.speech.*`, confidence-thresholded `wm.stt.{final,uncertain}` emits. |
 
 ## License
 
