@@ -81,6 +81,7 @@ repos=(
     "skill-manifest skill"
     "skill-telemetry spool"
     "tide-chart -"
+    "tool-manifest tool-manifest"
 )
 
 # Per-repo extra wiring after clone (idempotent). Each entry is "<repo>:<script>"
