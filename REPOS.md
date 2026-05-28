@@ -94,6 +94,7 @@ agorabus.
 | [wintermute-platform](https://github.com/j0yen/wintermute-platform) | `wmd-init`, `wm` | Autologin + systemd user target + Rust supervisor (wmd-init) and CLI (wm) — load-bearing scaffold under which the rest of Fleet 1 runs. |
 | [wintermute-tts](https://github.com/j0yen/wintermute-tts) | `wm-tts` | Text-to-speech daemon: Piper CPU-local primary, ElevenLabs opt-in cloud streaming, agorabus-driven, voicepack-based. |
 | [wintermute-stt](https://github.com/j0yen/wintermute-stt) | `wm-stt` | Speech-to-text daemon: whisper.cpp via whisper-rs (feature-gated), agorabus subscribe on `wm.audio.speech.*`, confidence-thresholded `wm.stt.{final,uncertain}` emits. |
+| [wintermute-audio](https://github.com/j0yen/wintermute-audio) | `wm-audio` | Microphone pipeline daemon: PipeWire AEC + NoiseTorch + microWakeWord + Silero VAD; one canonical mic capture fans out PCM on UDS and publishes `wm.audio.{wake,speech.*,mute,unmute}` on agorabus. |
 
 ## License
 
