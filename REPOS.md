@@ -82,6 +82,16 @@ parallel-install Arch kernel so the stock `linux` package stays untouched.
 | [agentns](https://github.com/j0yen/agentns) | CLONE_NEWAGENT — 8th Linux namespace type for per-session identity, counters, and budget enforcement. |
 | [wintermute-kernel](https://github.com/j0yen/wintermute-kernel) | Arch PKGBUILD for the parallel-install linux-wintermute kernel (agentns + memlog + provfs LSM baked in). |
 
+## Wintermute fleet
+
+The voice-assistant fleet — Fleet 1's hearing, speaking, and routing
+pieces. Each runs as a small daemon that exchanges JSON envelopes over
+agorabus.
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [wintermute-tts](https://github.com/j0yen/wintermute-tts) | `wm-tts` | Text-to-speech daemon: Piper CPU-local primary, ElevenLabs opt-in cloud streaming, agorabus-driven, voicepack-based. |
+
 ## License
 
 Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
