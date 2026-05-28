@@ -58,6 +58,17 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-28 (build): archived PRD-learning-candidate-triage (shell-target skill at
+  ~/.claude/skills/triage/). All 7 ACs paired with evidence — AC1/3/4 empirically
+  verified via the 09:34Z real-queue pass (saved 1 + discarded 2, journal entries
+  match PRD format); AC2/5/6/7 spec-verified against SKILL.md verbatim. Stop-hook
+  → SessionStart → /triage loop now has a consumer.
+- 2026-05-28 (build): archived PRD-wintermute-hardware-smoke-convention (autobuilder
+  commit 274c9b4, pushed via wm-push). Mixed-target convention PRD: notes/conventions/
+  hardware-smoke.md is canonical; wintermute-platform/stt/audio all carry conforming
+  tests/hardware_acs.rs; cargo smoke verified (platform 4 / stt 6 / audio 4 ignored).
+  PRD §4 documents the general pairing principle — each hardware-gated AC needs
+  software pairing OR witness-gated stub. Downstream archive runs unblocked.
 - 2026-05-28 (build): archived PRD-learning-candidate-prefilter (commit 4280bb9,
   pushed via wm-push). Shell-target: rewrote ~/.claude/scripts/recall-learning-candidate.sh
   with weighted per-pattern scoring (imperative=2 / observational=1 / capnoise=0.5),
