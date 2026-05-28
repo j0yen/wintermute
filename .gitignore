@@ -8,12 +8,17 @@ __pycache__/
 # Listed explicitly (rather than as a wildcard) so any new top-level
 # additions stay visible until intentionally ignored.
 /agent-pipe/
+/agentsh/
 /agorabus/
+/ambient/
 /autobuilder/
 /autobuilder-metric-harness/
+/baton/
+/build-skill/
 /claude-self/
 /conversations-zine/
 /daily-receipt/
+/dream-skill/
 /episodic-observer/
 /fsstory/
 /learning-db/
