@@ -58,6 +58,16 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-28 (build): published j0yen/day-stamps from PRD-daily-receipt-stamps.md (9/9 ACs + 2 proptests green; README+REPOS done; archive pending verified-completed).
+- 2026-05-28 (build): shipped j0yen/day-summarize from PRD-daily-receipt-summarize.md (9/9 ACs green; all 5 gates verified live; archived 10aa799).
+- 2026-05-28 (build): published j0yen/daily-receipt-printer from PRD-daily-receipt-printer.md (9/9 ACs green; README+REPOS done; install/wire+archive pending).
+- 2026-05-28 (build): self-mod shipped PRD-build-parser-bold-frontmatter —
+  scan-prds.sh now normalizes `**key:** value` to `key: value` before the
+  case dispatch, so the 13 cadence-* and daily-receipt-* PRDs with
+  markdown-bold frontmatter parse to their real build_target instead of
+  null. Smoke test at scripts/test-bold-frontmatter.sh (10/10 green).
+  Next scan tick will reclassify the 5 daily-receipt-* PRDs out of
+  needs_classification.
 - 2026-05-28 (build): shipped j0yen/provq from PRD-provq.md. Rust CLI
   reader for provfs xattrs: `provq show <path>` decodes user.prov.* into
   JSON/table; `provq scan <dir> --since 1h --session <id>` walks a tree
@@ -181,9 +191,8 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
   Awaiting boot validation.
 - 2026-05-25 (build): extended recall v0.4.0→0.4.1 from
   PRD-recall-observer-correlation.md (codename *braid*). First end-to-end
-  use of the new `/build` rust-extend path (drafted same session as
-  PRD-build-rust-extend.md). Two hooks rewritten, CHANGELOG.md created,
-  installed binary refreshed, pushed to j0yen/recall.
+  use of the new `/build` rust-extend path. Two hooks rewritten,
+  CHANGELOG.md created, installed binary refreshed, pushed to j0yen/recall.
 - 2026-05-22 (Claude, seed): initial draft from session observations.
   Voice / defaults / boundaries pulled from existing recall feedback
   memories; "things I keep getting wrong" and "aspirations" are new
