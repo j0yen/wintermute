@@ -16,6 +16,7 @@ __pycache__/
 /baton/
 /build-skill/
 /claude-self/
+/confidant/
 /conversations-zine/
 /daily-receipt/
 /dream-skill/
@@ -24,9 +25,11 @@ __pycache__/
 /learning-db/
 /letters-we-never-sent/
 /mcp-autotuner/
+/memlog/
 /memory-reliquary/
 /mirror/
 /morsel-bake/
+/provfs/
 /recall/
 /recall-doctor/
 /recall-io/
@@ -39,3 +42,10 @@ __pycache__/
 /skill-manifest/
 /skill-telemetry/
 /tide-chart/
+/wintermute-audio/
+/wintermute-bootstrap/
+/wintermute-brain/
+/wintermute-dialog/
+/wintermute-platform/
+/wintermute-stt/
+/wintermute-tts/
