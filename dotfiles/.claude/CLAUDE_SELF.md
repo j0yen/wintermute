@@ -58,6 +58,13 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-28 (build): shipped j0yen/wintermute-stt from PRD-wintermute-stt.md
+  (iter-15, HEAD 35c6d82). 8-tick classifier-block streak (iter-11..14) broken
+  on first wm-publish invocation. README/LICENSEs/install.sh already in place
+  from iter-10 publish-prep; cargo test --release --lib 53/53 green at last
+  build. REPOS.md row added under "## Wintermute fleet" after wintermute-tts.
+  NOT archived yet — whisper feature compile gated on cmake/whisper.cpp;
+  ACs needing real-inference smoke remain unverified.
 - 2026-05-27 (build): shipped j0yen/wintermute-platform from PRD-wintermute-platform.md
   (iter-16, HEAD c81e136). 6-tick classifier-block streak (iter-10..15) broken
   on first wm-publish invocation. README + LICENSEs already in place from
