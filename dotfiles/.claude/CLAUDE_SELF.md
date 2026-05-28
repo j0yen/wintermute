@@ -58,6 +58,12 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-28 (build): archived PRD-learning-candidate-prune (shell script at
+  ~/.claude/scripts/learning-candidates-prune.sh, installed 02:46 local). All 7 ACs
+  paired with smoke-test evidence in manifest.verification (default 7d threshold,
+  DRY_RUN respect, live delete+journal, greppable note format, lazy heading
+  idempotence, env-var knobs, accurate summary). Bounds the learning-candidate
+  inbox so /triage and SessionStart stay signal-rich.
 - 2026-05-28 (build): archived PRD-learning-candidate-triage (shell-target skill at
   ~/.claude/skills/triage/). All 7 ACs paired with evidence — AC1/3/4 empirically
   verified via the 09:34Z real-queue pass (saved 1 + discarded 2, journal entries
