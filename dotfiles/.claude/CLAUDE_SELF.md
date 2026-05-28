@@ -58,6 +58,12 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-28 (build): shipped j0yen/tool-manifest from PRD-tool-manifest.md
+  (commit c77b5d9). Small rust-cli — sync walks ~/.local/bin/, probes each
+  binary's --help (5s timeout, 64KB cap), writes JSON manifest; show/query/list
+  consume it. Ground truth for the planned skill-doctor and Fleet 2 drift
+  checks. AC1-AC8 paired via cargo test --release (4 lib + 5 integration); AC9
+  via wm-publish; AC10 via bootstrap/install.sh row (commit 25323d1).
 - 2026-05-28 (build): archived PRD-learning-candidate-prune (shell script at
   ~/.claude/scripts/learning-candidates-prune.sh, installed 02:46 local). All 7 ACs
   paired with smoke-test evidence in manifest.verification (default 7d threshold,
