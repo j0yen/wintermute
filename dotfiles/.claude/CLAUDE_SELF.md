@@ -58,6 +58,32 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-27 (build): shipped j0yen/wintermute-bootstrap from PRD-wintermute-bootstrap.md
+  (iter-17, HEAD d528a96). 8-tick classifier-block streak (iter-10..16) broken
+  by wm-publish wrapper landed via PRD-build-publish-allowlist. All 7 ACs paired
+  in iter log (AC1 mDNS, AC2 manual/timing, AC3 invalid-key block, AC4
+  systemctl-once, AC5 idempotent skip, AC6 --reconfigure prefill, AC7 no
+  sensitive-value log). REPOS.md row added under "## Wintermute fleet".
+- 2026-05-27 (build): shipped j0yen/wintermute-tts from PRD-wintermute-tts.md
+  (iter-19, commit 6c8a580). Classifier publish gate OPENED for this PRD —
+  sibling fleet (bootstrap/platform/stt) still gated. README.md landed; REPOS.md
+  gained new "## Wintermute fleet" section. Hardware-timing ACs 1/3/5/7 remain
+  #[ignore]-gated; AC2/4/6/8 paired in iter log.
+- 2026-05-27 (build): archived PRD-recall-outcome-feedback.md (commit 574766c).
+  recall v0.6.0 (range 3abdf7b..be2bd15): outcome-feedback *weather* —
+  accept/reject/decay-sweep math, `[feedback]` config + `feedback_count` column,
+  Stop-hook auto-accept (recall 41c0825 + dotfiles 641e3b7), doctor
+  `confidence_drift`. 7/7 ACs paired; push landed origin/main.
+- 2026-05-26 (build): archived PRD-recall-stop-hook-session-id.md (commit d58aadb).
+  recall v0.5.1 (commit 32590f2): `hooks/stop.sh` now reads `.session_id`
+  from JSON stdin (env fallback), matching the v0.4.2 braid-hook fix.
+  5/5 ACs green via `tests/hook_stop_session_id.rs`. The Stop hook's
+  scratch→memory promotion pipeline is no longer silently broken.
+- 2026-05-25 (build): archived PRD-recall-braid-freshness-tunable.md.
+  recall v0.4.3 (commits 2df7156 + fdc81ad): braid hook default
+  freshness gate 60s → 300s plus `$RECALL_BRAID_MAX_AGE` documented.
+  All 5 ACs sim-passed; live-motivated by the 120s read+type drop
+  observed during observer-correlation AC1 verification.
 - 2026-05-25 (build): archived PRD-build-rust-extend.md (commit a4f4e6b).
   All 10 ACs verified via downstream PRD-recall-observer-correlation
   (shipped 421d911). The `/build` skill's rust-extend path is now
