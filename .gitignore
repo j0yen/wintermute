@@ -18,6 +18,7 @@ __pycache__/
 /claude-self/
 /confidant/
 /conversations-zine/
+/cradle/
 /daily-receipt/
 /dream-skill/
 /episodic-observer/
@@ -46,6 +47,7 @@ __pycache__/
 /wintermute-bootstrap/
 /wintermute-brain/
 /wintermute-dialog/
+/wintermute-kernel/
 /wintermute-platform/
 /wintermute-stt/
 /wintermute-tts/
