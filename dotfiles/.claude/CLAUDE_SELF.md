@@ -58,6 +58,13 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-28 (build): shipped j0yen/provq from PRD-provq.md. Rust CLI
+  reader for provfs xattrs: `provq show <path>` decodes user.prov.* into
+  JSON/table; `provq scan <dir> --since 1h --session <id>` walks a tree
+  with predicates. 18 tests green; installed at ~/.local/bin/provq.
+  AC4-AC7 boot-gated per PRD (wintermute kernel LSM live-stamp); not
+  archived this tick — in_progress until boot validation. Added to
+  wm-publish + wm-push ALLOW; REPOS.md row in Session / context.
 - 2026-05-28 (build): shipped j0yen/tool-manifest from PRD-tool-manifest.md
   (commit c77b5d9). Small rust-cli — sync walks ~/.local/bin/, probes each
   binary's --help (5s timeout, 64KB cap), writes JSON manifest; show/query/list
