@@ -58,6 +58,13 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-28 (build): archived PRD-learning-candidate-prefilter (commit 4280bb9,
+  pushed via wm-push). Shell-target: rewrote ~/.claude/scripts/recall-learning-candidate.sh
+  with weighted per-pattern scoring (imperative=2 / observational=1 / capnoise=0.5),
+  threshold ≥3, intra-session dedup, and `.audit.log` per-decision line. All 7 ACs
+  paired via synthetic-JSONL smoke runs visible in audit log. Cuts the
+  "turns out×84" noise class and the duplicate-pair issue without losing
+  imperative signals.
 - 2026-05-28 (build): archived PRD-wintermute-brain (shipped at 918a3d2, archive
   commit 3f66aac). All 8 ACs paired: AC5/6/7 unit-paired since iter-14, AC1/2/3/4/8
   via tests/live_acs.rs (iter-20) gated on WM_BRAIN_LIVE_HARNESS=1, matching the
