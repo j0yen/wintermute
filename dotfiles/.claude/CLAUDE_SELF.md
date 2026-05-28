@@ -58,6 +58,13 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-27 (build): shipped j0yen/wintermute-platform from PRD-wintermute-platform.md
+  (iter-16, HEAD c81e136). 6-tick classifier-block streak (iter-10..15) broken
+  on first wm-publish invocation. README + LICENSEs already in place from
+  iter-13/-14; cargo test --release --lib 41/41 green pre-push. REPOS.md row
+  added under "## Wintermute fleet" between bootstrap and tts. NOT archived
+  yet — AC pairing still partial (ACs 1/2/5/7/8 need live-systemd or
+  wm-mute/wm-logs wiring).
 - 2026-05-27 (build): shipped j0yen/wintermute-bootstrap from PRD-wintermute-bootstrap.md
   (iter-17, HEAD d528a96). 8-tick classifier-block streak (iter-10..16) broken
   by wm-publish wrapper landed via PRD-build-publish-allowlist. All 7 ACs paired
