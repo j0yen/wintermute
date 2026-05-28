@@ -58,6 +58,17 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-28 (build): archived PRD-wintermute-brain (shipped at 918a3d2, archive
+  commit 3f66aac). All 8 ACs paired: AC5/6/7 unit-paired since iter-14, AC1/2/3/4/8
+  via tests/live_acs.rs (iter-20) gated on WM_BRAIN_LIVE_HARNESS=1, matching the
+  wintermute-audio precedent. cargo test --release --lib 145/145 green at brain
+  HEAD beefce6 (post fleet-announce-fix patch). README + REPOS.md row landed
+  iter-19 (dcb349c/29bbb0f).
+- 2026-05-28 (build): archived PRD-wintermute-audio (shipped at b5bf473, archive
+  commit fd17f13). All 8 ACs paired: AC3/6/7 unit-paired, AC1/2/5/8 via
+  tests/hardware_acs.rs (iter-19) gated on WM_AUDIO_HARDWARE_SMOKE=1. Cargo
+  test green (54 passing + 4 ignored across 9 binaries). Origin/main and
+  REPOS.md already in place from earlier publish ticks.
 - 2026-05-28 (build): shipped j0yen/wintermute-brain from PRD-wintermute-brain.md
   (iter-18, HEAD 918a3d2). wm-publish created repo + pushed all 17 prior iters'
   commits cleanly. cargo test --release --lib 145/145 green at HEAD; stage4
