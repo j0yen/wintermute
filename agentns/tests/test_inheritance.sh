@@ -12,9 +12,11 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 #define _GNU_SOURCE
 #include <sched.h>
 #include <stdio.h>
+#include <sys/syscall.h>
 #include <unistd.h>
+/* glibc's unshare(2) wrapper is int-only; CLONE_NEWAGENT lives above bit 32. */
 int main(int argc, char **argv) {
-	if (unshare(0x00000100) /* CLONE_NEWAGENT */ < 0) { perror("unshare"); return 1; }
+	if (syscall(SYS_unshare, 0x400000000UL /* CLONE_NEWAGENT */) < 0) { perror("unshare"); return 1; }
 	execvp(argv[1], argv + 1);
 	perror("exec"); return 1;
 }

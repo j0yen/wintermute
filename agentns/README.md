@@ -120,11 +120,24 @@ described in the PRD.
 
 ## CLONE_NEWAGENT bit choice
 
-The PRD speculated `0x40000000` but that bit is *currently* the
-deprecated `CLONE_NEWNET` legacy alias (and `CLONE_NEWUSER` pre-3.8).
-We instead claim `0x00000100` from the small-pool of unused bits in
-the lower half. The choice is documented in `patches/0001-…` and the
-UAPI header.
+`0x400000000ULL` — the next free 64-bit slot above upstream's
+`CLONE_INTO_CGROUP` (`0x200000000ULL`). The 32-bit space (`0x80` ..
+`0x80000000`) is fully claimed by upstream CLONE_* flags and is *not*
+available for vendor extensions.
+
+The PRD originally speculated `0x40000000`; that's the long-standing
+`CLONE_NEWNET` bit. An earlier implementation drifted to `0x00000100`
+— which aliases `CLONE_VM`, so every kthread fork was inadvertently
+requesting a new agent namespace. `copy_agent_ns()` ran before
+`agent_ns_cache` was initialized and the kernel hung on the firmware
+splash with no console output (2026-05-25 boot attempts). The agentns
+init now carries a `BUILD_BUG_ON` against every upstream `CLONE_*` bit
+so a future collision fails to compile rather than bricks boot.
+
+Because `CLONE_NEWAGENT` is above bit 32, it is reachable only via
+`clone3(2)` — the legacy `clone(2)` syscall passes a 32-bit flag word
+and cannot express it. This is intentional; the `unshare(2)` flags
+parameter is `unsigned long`, which is 64-bit on x86_64.
 
 ## Risks & caveats
 

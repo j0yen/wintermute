@@ -668,19 +668,42 @@ static struct ctl_table agent_ns_sysctls[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_douintvec,
 	},
-	{ }
 };
 
 static int __init agent_ns_init(void)
 {
-	agent_ns_cache = KMEM_CACHE(agent_namespace, SLAB_PANIC | SLAB_ACCOUNT);
-	agent_ns_link_cache = KMEM_CACHE(agent_ns_link, SLAB_PANIC | SLAB_ACCOUNT);
+	/*
+	 * Compile-time guard: CLONE_NEWAGENT must not alias any existing
+	 * upstream CLONE_* bit. An earlier version used 0x00000100 which
+	 * silently aliased CLONE_VM — every kthread fork was interpreted
+	 * as also requesting a new agent namespace, and copy_agent_ns ran
+	 * before agent_ns_cache existed (this initcall hadn't fired yet),
+	 * which hung the kernel before the framebuffer console came up.
+	 */
+	BUILD_BUG_ON(CLONE_NEWAGENT & (CSIGNAL | CLONE_VM | CLONE_FS |
+		CLONE_FILES | CLONE_SIGHAND | CLONE_PIDFD | CLONE_PTRACE |
+		CLONE_VFORK | CLONE_PARENT | CLONE_THREAD | CLONE_NEWNS |
+		CLONE_SYSVSEM | CLONE_SETTLS | CLONE_PARENT_SETTID |
+		CLONE_CHILD_CLEARTID | CLONE_DETACHED | CLONE_UNTRACED |
+		CLONE_CHILD_SETTID | CLONE_NEWCGROUP | CLONE_NEWUTS |
+		CLONE_NEWIPC | CLONE_NEWUSER | CLONE_NEWPID | CLONE_NEWNET |
+		CLONE_IO | CLONE_NEWTIME));
+	BUILD_BUG_ON(CLONE_NEWAGENT & (CLONE_CLEAR_SIGHAND | CLONE_INTO_CGROUP));
+
+	/*
+	 * SLAB_ACCOUNT intentionally not set: charging tiny per-session NS
+	 * objects to memcg isn't worth the boot-order coupling.
+	 */
+	agent_ns_cache = KMEM_CACHE(agent_namespace, SLAB_PANIC);
+	agent_ns_link_cache = KMEM_CACHE(agent_ns_link, SLAB_PANIC);
 
 	/* set init_agent_ns inum so /proc/$PID/ns/agent for init tasks resolves */
 	if (__ns_common_init(&init_agent_ns.ns, CLONE_NEWAGENT,
 			     &agentns_operations, 0))
 		pr_warn("agent_ns: failed to init init NS ns_common\n");
 	init_agent_ns.counters = alloc_percpu(struct agent_ns_counters_pcp);
+	if (!init_agent_ns.counters)
+		pr_warn("agent_ns: failed to alloc init NS counters\n");
 	init_agent_ns.created_ns = ktime_get_boottime_ns();
 
 	register_sysctl_init("kernel/agent_ns", agent_ns_sysctls);
@@ -690,4 +713,13 @@ static int __init agent_ns_init(void)
 		sysctl_agent_ns_enabled, sysctl_agent_ns_max_lifetime);
 	return 0;
 }
-early_initcall(agent_ns_init);
+/*
+ * subsys_initcall (not early_initcall): memcg, workqueue, and slab_state
+ * full are all guaranteed up here. The init NS is statically initialized
+ * (see init_agent_ns above), so kthreads forked before this initcall runs
+ * already inherit a valid &init_agent_ns pointer via init_nsproxy; only
+ * counters and the proc inum are filled in here, both of which are
+ * NULL-tolerant on the readers' side (see cur_counters() and the
+ * `ns == &init_agent_ns` early-return in agent_ns_counters_snapshot()).
+ */
+subsys_initcall(agent_ns_init);

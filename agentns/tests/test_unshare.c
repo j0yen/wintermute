@@ -20,14 +20,24 @@
 #include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include "../include/uapi/linux/agent_namespaces.h"
 
 #ifndef CLONE_NEWAGENT
-#define CLONE_NEWAGENT 0x00000100
+#define CLONE_NEWAGENT 0x400000000ULL
 #endif
+
+/*
+ * glibc's unshare(2) wrapper is int-only — bits above 32 truncate to
+ * zero. Reach the kernel's unsigned-long flags argument directly.
+ */
+static inline int unshare_u64(unsigned long long flags)
+{
+	return syscall(SYS_unshare, (unsigned long)flags);
+}
 
 #define DIE(fmt, ...) do { fprintf(stderr, fmt "\n", ##__VA_ARGS__); exit(1); } while (0)
 #define SKIP(fmt, ...) do { fprintf(stderr, "SKIP: " fmt "\n", ##__VA_ARGS__); exit(77); } while (0)
@@ -57,7 +67,7 @@ int main(void)
 		DIE("could not read parent agent_session");
 	printf("parent (init NS): session=%s\n", parent_id);
 
-	if (unshare(CLONE_NEWAGENT) < 0) {
+	if (unshare_u64(CLONE_NEWAGENT) < 0) {
 		if (errno == ENOSYS) SKIP("unshare(CLONE_NEWAGENT) returned ENOSYS");
 		if (errno == EPERM)
 			DIE("unshare(CLONE_NEWAGENT) returned EPERM — run as root or grant CAP_SYS_ADMIN");
