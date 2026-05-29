@@ -109,6 +109,7 @@ agorabus.
 | [wintermute-audio](https://github.com/j0yen/wintermute-audio) | `wm-audio` | Microphone pipeline daemon: PipeWire AEC + NoiseTorch + microWakeWord + Silero VAD; one canonical mic capture fans out PCM on UDS and publishes `wm.audio.{wake,speech.*,mute,unmute}` on agorabus. |
 | [wintermute-dialog](https://github.com/j0yen/wintermute-dialog) | `wm-dialog` | Dialog FSM daemon: wake/barge-in/confirm/child-lock orchestration; subscribes `wm.audio.*`/`wm.stt.*`/`wm.brain.*`, publishes `wm.dialog.{tts.{speak,cancel},state,brain.request,confirm.{granted,denied},audio.{mute,unmute}}` with 200ms barge-in/mute budgets. |
 | [wintermute-brain](https://github.com/j0yen/wintermute-brain) | `wmd` | Claude API conversation loop with recall-backed persistent memory; Sonnet 4.6 default + Opus 4.7 opt-in, prompt-cached profile + day thread, sub-10 ms recall retrieval, tool-router seam for Fleet 2, destructive-intent JSON gating through wm-dialog. |
+| [wintermute-music](https://github.com/j0yen/wintermute-music) | `wm-music` | Fleet 2 action layer: voice-driven MPRIS player control (play/pause/next/prev/volume/now-playing) over D-Bus. Provider-agnostic remote control — drives Spotify, Rhythmbox, mpv, VLC; no in-process audio. Clean `no_player` contract when nothing's running. |
 
 ## License
 

@@ -58,6 +58,7 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-28 (build): published j0yen/wintermute-music from PRD-wintermute-music.md (rust-cli, Fleet 2 action layer; 8 unit + 3 acceptance green, clippy clean; README+LICENSE×2+REPOS done; archive blocked — live ACs 2-8,10 need a running MPRIS player + voice fleet).
 - 2026-05-28 (build): published j0yen/skill-doctor from PRD-skill-doctor.md (rust-cli, 31 lib tests + acceptance/proptest green @278f1da; README+LICENSE×2+REPOS done; archive blocked on live AC2/AC7/AC11 — need tool-manifest sync to write ~/.claude/tool-manifest/manifest.json + a user-promoted proposal).
 - 2026-05-28 (build): published j0yen/day-haiku from PRD-daily-receipt-haiku.md (rust-cli, 25 tests green + clippy clean; README+LICENSE×2+install.sh+REPOS done; archive pending verified-completed gate next tick).
 - 2026-05-28 (build): published j0yen/session-postmortem from PRD-session-postmortem.md (rust-cli, 26+9 ACs green, 1 ignored=AC9 deferred-upstream; README+REPOS done; archive pending verified-completed gate next tick).
@@ -183,16 +184,7 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
   (shipped 421d911). The `/build` skill's rust-extend path is now
   proven end-to-end: extend-scaffold → iter-N → bump → install →
   changelog → push → archive. Self-mod arc closed.
-- 2026-05-24 (build): shipped kernel tier of agent-tooling arc — `memlog`
-  (char-dev compaction log), `provfs` LSM (xattr provenance), `agentns`
-  Phase 3+4 (LSM stamping + budget enforcement), all baked into the
-  parallel-install `linux-wintermute` kernel package at
-  `~/wintermute/wintermute-kernel/pkg/`. Builds against Arch linux
-  7.0.10-arch1. Drafted the inline-edits pattern (`apply-agentns.py`:
-  anchored idempotent insertions in lieu of unified diffs) and a new
-  `build_target: kernel-extend` route in `/build`. /dream learned the
-  three new primitives; /self-review learned to check them after boot.
-  Awaiting boot validation.
+- 2026-05-24 (build): shipped kernel tier of agent-tooling arc — `memlog` (char-dev compaction log), `provfs` LSM (xattr provenance), `agentns` Phase 3+4 — baked into the parallel-install `linux-wintermute` kernel pkg. Added the `apply-agentns.py` anchored-inline-edit pattern and `build_target: kernel-extend` route in `/build`. Awaiting boot validation.
 - 2026-05-22 (Claude, seed): initial draft from session observations.
   Voice / defaults / boundaries pulled from existing recall feedback
   memories; "things I keep getting wrong" and "aspirations" are new
