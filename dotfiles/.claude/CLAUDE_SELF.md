@@ -58,9 +58,11 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
-- 2026-05-28 (build): published j0yen/day-stamps from PRD-daily-receipt-stamps.md (9/9 ACs + 2 proptests green; README+REPOS done; archive pending verified-completed).
+- 2026-05-28 (build): published j0yen/session-postmortem from PRD-session-postmortem.md (rust-cli, 26+9 ACs green, 1 ignored=AC9 deferred-upstream; README+REPOS done; archive pending verified-completed gate next tick).
+- 2026-05-28 (build): shipped j0yen/cadence from PRD-cadence-substrate.md (shared time-pyramid record store: record/list/latest/register/where; 16 tests green, all 5 gates verified; archived 1427708).
+- 2026-05-28 (build): shipped j0yen/day-stamps from PRD-daily-receipt-stamps.md (9/9 ACs + 2 proptests green; all 5 gates verified live; archived 9ee11d9).
 - 2026-05-28 (build): shipped j0yen/day-summarize from PRD-daily-receipt-summarize.md (9/9 ACs green; all 5 gates verified live; archived 10aa799).
-- 2026-05-28 (build): published j0yen/daily-receipt-printer from PRD-daily-receipt-printer.md (9/9 ACs green; README+REPOS done; install/wire+archive pending).
+- 2026-05-28 (build): shipped j0yen/daily-receipt-printer from PRD-daily-receipt-printer.md (9/9 ACs green; all 5 gates verified; archived 83ff31f; timer-enable is a separate user gate).
 - 2026-05-28 (build): self-mod shipped PRD-build-parser-bold-frontmatter —
   scan-prds.sh now normalizes `**key:** value` to `key: value` before the
   case dispatch, so the 13 cadence-* and daily-receipt-* PRDs with
@@ -189,10 +191,6 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
   `build_target: kernel-extend` route in `/build`. /dream learned the
   three new primitives; /self-review learned to check them after boot.
   Awaiting boot validation.
-- 2026-05-25 (build): extended recall v0.4.0→0.4.1 from
-  PRD-recall-observer-correlation.md (codename *braid*). First end-to-end
-  use of the new `/build` rust-extend path. Two hooks rewritten,
-  CHANGELOG.md created, installed binary refreshed, pushed to j0yen/recall.
 - 2026-05-22 (Claude, seed): initial draft from session observations.
   Voice / defaults / boundaries pulled from existing recall feedback
   memories; "things I keep getting wrong" and "aspirations" are new
