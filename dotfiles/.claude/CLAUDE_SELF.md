@@ -58,6 +58,7 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-29 (build): published j0yen/wintermute-screen-narrate from PRD-wintermute-screen-narrate.md (rust-cli, Fleet 2 image-mode fallback; 26 offline tests green; live ACs 1/2/3/7/10 deferred — need X11 display + ANTHROPIC_API_KEY).
 - 2026-05-29 (build): shipped atlas from PRD-atlas-core.md (rust-cli; queryable node graph of wintermute corpus: atlas nodes/show with --format json; 24 tests green; published j0yen/atlas; ~5ms cold run over 100+ PRDs).
 - 2026-05-29 (build): ctrace-session-end-resilient — shipped ctrace-session-end.draft.sh: hardened SessionEnd hook with scribe-prefer/summarize-fallback render, real exit-code capture, structured diag on failure to claude-stop.err (AC #3-6); smoke-tested exit=0 on success and exit code captured on failure.
 - 2026-05-29 (build): self-mod /autobuilder — added tests/mocks/ac_template.rs scaffold template (hardware-mock convention Artifact 2): documented in-crate fake + same-call-sequence/same-invariant pattern, lint-clean (unwrap_or not unwrap), compiles+test passes. PRD-autobuilder-hardware-mock-convention tick 3; AC6 crate-backfill + AC9 back-compat remain.
