@@ -11,6 +11,12 @@
 # appended to $RECALL_WEATHER_DIR/<sid>/recalled.json so the Stop hook
 # can implicit-accept them (PRD-recall-outcome-feedback AC2).
 #
+# v0.10.0 surfaced-tracking (PRD-recall-surfaced-tracking AC4): also
+# writes $RECALL_WEATHER_DIR/<sid>/surfaced.json with the same ids.
+# For SessionStart, surfaced == recalled (same event). The Stop hook
+# calls `recall feedback --surfaced` on surfaced.json ids BEFORE the
+# accept step, so the two counters remain distinct.
+#
 # Silent if recall is not installed or the store is empty.
 
 set -uo pipefail
@@ -75,14 +81,22 @@ emit_section "project:$project" "project:$project:"
 emit_section "self"             "self:"
 
 # weather: write the surfaced IDs so the Stop hook can implicit-accept.
+# Also writes surfaced.json (AC4 — PRD-recall-surfaced-tracking): for
+# SessionStart, surfaced == recalled (same event); the Stop hook uses both
+# files to record distinct counters.
 if [ -n "$sid" ] && [ -x "$JQ" ] && [ -n "${surfaced_ids// /}" ]; then
     weather_dir="${RECALL_WEATHER_DIR:-$HOME/.cache/recall-weather}/$sid"
     if mkdir -p "$weather_dir" 2>/dev/null; then
         # De-dup, drop blanks, JSON-array-ify.
-        printf '%s' "$surfaced_ids" \
+        ids_json="$(printf '%s' "$surfaced_ids" \
             | awk 'NF && !seen[$0]++' \
             | "$JQ" -R . \
-            | "$JQ" -s . \
-            > "$weather_dir/recalled.json" 2>/dev/null || true
+            | "$JQ" -s . 2>/dev/null)"
+        # recalled.json — Stop hook auto-accept step.
+        printf '%s\n' "$ids_json" > "$weather_dir/recalled.json.tmp" 2>/dev/null \
+            && mv "$weather_dir/recalled.json.tmp" "$weather_dir/recalled.json" 2>/dev/null || true
+        # surfaced.json — Stop hook surfaced-increment step (AC4).
+        printf '%s\n' "$ids_json" > "$weather_dir/surfaced.json.tmp" 2>/dev/null \
+            && mv "$weather_dir/surfaced.json.tmp" "$weather_dir/surfaced.json" 2>/dev/null || true
     fi
 fi
