@@ -78,6 +78,7 @@ repos=(
     "self-portrait self-portrait"
     "session-index transcript"
     "session-trace-receipt -"
+    "skill-doctor skill-doctor"
     "skill-manifest skill"
     "skill-telemetry spool"
     "tide-chart -"
