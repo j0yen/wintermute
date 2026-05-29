@@ -35,6 +35,12 @@ clones, builds, and wires up everything on a fresh machine.
 | [build-skill](https://github.com/j0yen/build-skill) | — | Claude Code skill (`/build`): continuous PRD implementation loop. Runs every 5 min via systemd-user timer, picks one queued PRD per tick, delegates Rust to `/autobuilder`, publishes the result. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/build-skill/main/install.sh \| bash`. |
 | [dream-skill](https://github.com/j0yen/dream-skill) | — | Claude Code skill (`/dream`): vision into PRDs. Listens, researches, decomposes a vision into a fleet of PRD-sized pieces, gossips with `/build` via a shared channel. Runs overnight every 30 min. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/dream-skill/main/install.sh \| bash`. |
 
+## Self-review / observability
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [docket](https://github.com/j0yen/docket) | `docket` | SQLite-backed CLI ledger for standing findings — deduplicates recurring self-review discoveries by key, tracks first/last-seen timestamps and consecutive-run streak, exposes `report`/`list`/`show`/`resolve` commands. |
+
 ## Memory layer
 
 | Repo | Binary | What it does |
