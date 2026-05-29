@@ -58,6 +58,16 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-29 (build): shipped atlas from PRD-atlas-core.md (rust-cli; queryable node graph of wintermute corpus: atlas nodes/show with --format json; 24 tests green; published j0yen/atlas; ~5ms cold run over 100+ PRDs).
+- 2026-05-29 (build): ctrace-session-end-resilient — shipped ctrace-session-end.draft.sh: hardened SessionEnd hook with scribe-prefer/summarize-fallback render, real exit-code capture, structured diag on failure to claude-stop.err (AC #3-6); smoke-tested exit=0 on success and exit code captured on failure.
+- 2026-05-29 (build): self-mod /autobuilder — added tests/mocks/ac_template.rs scaffold template (hardware-mock convention Artifact 2): documented in-crate fake + same-call-sequence/same-invariant pattern, lint-clean (unwrap_or not unwrap), compiles+test passes. PRD-autobuilder-hardware-mock-convention tick 3; AC6 crate-backfill + AC9 back-compat remain.
+- 2026-05-29 (build): shipped wintermute-almanac from PRD-almanac-schedule-store.md (rust-cli; local offline recurring-routine store for elder-care — med/meal/appt/activity; 20 acceptance + proptest tests green; published j0yen/wintermute-almanac; wm-almanac installed to ~/.local/bin/).
+- 2026-05-29 (build): shipped wintermute-desktop from PRD-wintermute-desktop.md (rust-cli, Fleet 2; AT-SPI tree reader + baton keystroke injector, 51 tests green; published j0yen/wintermute-desktop; live ACs need X11 session with running apps).
+- 2026-05-29 (build): extended memlog v0.1.0→v0.2.0 from PRD-memlog-witness.md (rust-extend; memlog-witness daemon + libmemlog persistence.rs/lock.rs; 20 tests green; CHANGELOG.md created; binary installed to ~/.local/bin/memlog-witness; boot-gated ACs 6-8 pending reboot into linux-wintermute).
+- 2026-05-29 (build): shipped wintermute-browser from PRD-wintermute-browser.md (rust-cli, Fleet 2 action layer; 20 unit tests green; published j0yen/wintermute-browser; live ACs 1/4/5/6/10 need real Chromium+wmd).
+- 2026-05-29 (build): PRD-agorabus-boot-handshake — fixed install helper symlink desync (live hook is a symlink into dotfiles repo; helper now readlink -f's the target so `install` writes the real file + backup lands in dotfiles, symlink preserved). Dry-run smoke green/non-mutating (a65c26f). Live install still user-gated per PRD "Don't auto-merge to main".
+- 2026-05-29 (build): self-mod /autobuilder — added scripts/run-mutants.sh + schemas/mutants-receipt.schema.json (cargo-mutants Phase 1 telemetry: installs once if absent, runs in-place, merges mutants_total/killed/alive/kill_rate/wall into metrics.json, caches by sha256(src+tests+Cargo.toml), exits 0 on low kill_rate). SKILL.md Stage 3 step 4b + quality-score gains +5*mutation_kill_rate. PRD-autobuilder-mutation-testing Phase 1; Phase 2 hard gate is a follow-on after 20 crates calibrate.
+- 2026-05-29 (build): shipped PRD-wintermute-fleet-agorabus-announce-fix.md (rust-extend ×4: tts/stt/dialog/brain announce()-before-subscribe). User started the fleet — all 4 units active/running NRestarts=0 (AC1), agorabus peers shows 8 wm-* entries pub+sub per daemon (AC2); AC3 cargo-test green, AC4 fail-open code-path. All 5 verified-completed checks held; PRD git-mv'd to PRDs-archive/.
 - 2026-05-28 (build): published j0yen/wintermute-music from PRD-wintermute-music.md (rust-cli, Fleet 2 action layer; 8 unit + 3 acceptance green, clippy clean; README+LICENSE×2+REPOS done; archive blocked — live ACs 2-8,10 need a running MPRIS player + voice fleet).
 - 2026-05-28 (build): published j0yen/skill-doctor from PRD-skill-doctor.md (rust-cli, 31 lib tests + acceptance/proptest green @278f1da; README+LICENSE×2+REPOS done; archive blocked on live AC2/AC7/AC11 — need tool-manifest sync to write ~/.claude/tool-manifest/manifest.json + a user-promoted proposal).
 - 2026-05-28 (build): published j0yen/day-haiku from PRD-daily-receipt-haiku.md (rust-cli, 25 tests green + clippy clean; README+LICENSE×2+install.sh+REPOS done; archive pending verified-completed gate next tick).
@@ -185,8 +195,4 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
   proven end-to-end: extend-scaffold → iter-N → bump → install →
   changelog → push → archive. Self-mod arc closed.
 - 2026-05-24 (build): shipped kernel tier of agent-tooling arc — `memlog` (char-dev compaction log), `provfs` LSM (xattr provenance), `agentns` Phase 3+4 — baked into the parallel-install `linux-wintermute` kernel pkg. Added the `apply-agentns.py` anchored-inline-edit pattern and `build_target: kernel-extend` route in `/build`. Awaiting boot validation.
-- 2026-05-22 (Claude, seed): initial draft from session observations.
-  Voice / defaults / boundaries pulled from existing recall feedback
-  memories; "things I keep getting wrong" and "aspirations" are new
-  observations from today's work. Lint contract: seven sections,
-  ≤200 lines, aspirations must be non-empty.
+- 2026-05-22 (Claude, seed): initial draft. Lint contract: seven sections, ≤200 lines, aspirations must be non-empty.
