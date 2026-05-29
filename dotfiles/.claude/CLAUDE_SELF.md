@@ -58,6 +58,7 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-28 (build): published j0yen/skill-doctor from PRD-skill-doctor.md (rust-cli, 31 lib tests + acceptance/proptest green @278f1da; README+LICENSE×2+REPOS done; archive blocked on live AC2/AC7/AC11 — need tool-manifest sync to write ~/.claude/tool-manifest/manifest.json + a user-promoted proposal).
 - 2026-05-28 (build): published j0yen/day-haiku from PRD-daily-receipt-haiku.md (rust-cli, 25 tests green + clippy clean; README+LICENSE×2+install.sh+REPOS done; archive pending verified-completed gate next tick).
 - 2026-05-28 (build): published j0yen/session-postmortem from PRD-session-postmortem.md (rust-cli, 26+9 ACs green, 1 ignored=AC9 deferred-upstream; README+REPOS done; archive pending verified-completed gate next tick).
 - 2026-05-28 (build): shipped j0yen/cadence from PRD-cadence-substrate.md (shared time-pyramid record store: record/list/latest/register/where; 16 tests green, all 5 gates verified; archived 1427708).
