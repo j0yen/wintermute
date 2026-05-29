@@ -1,0 +1,142 @@
+{
+  "schema": "autobuilder.intent_card.v1",
+  "prd_source": "/home/jsy/wintermute/autobuilder/PRD-docket-core.md",
+  "intent_slug": "docket-core",
+  "root_motivation": "The self-review loop rediscovers the same system findings every run because there is no per-finding primary key; without a key there is no deduplication, streak tracking, escalation threshold, or auto-close — docket-core provides that key and the minimal CRUD surface that downstream automation (docket-escalate, docket-self-review-bind) depends on.",
+  "user_persona": "Claude Code running self-review on jsy's laptop; also jsy manually inspecting open findings via the CLI.",
+  "unfakeable_metric": {
+    "name": "acceptance_tests_passing_count",
+    "lower_is_better": false,
+    "harness_command": "cargo test --workspace --no-fail-fast 2>&1 | grep -cE '^test acceptance_[a-z0-9_]+ \\.\\.\\. ok' || true",
+    "target": 10
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "level": "MUST",
+      "description": "cargo build --release produces target/release/docket; --version prints 'docket <semver>' and --help lists report|list|show|resolve subcommands.",
+      "test": "tests/acceptance_ac1.rs"
+    },
+    {
+      "id": "AC2",
+      "level": "MUST",
+      "description": "docket report --run r1 --key k --title T on empty store creates row with status=open, first_seen==last_seen, runs_seen=1, consecutive_runs=1, report_count=1 (verified via docket show k --format json).",
+      "test": "tests/acceptance_ac2.rs"
+    },
+    {
+      "id": "AC3",
+      "level": "MUST",
+      "description": "Reporting key k again with same --run r1 leaves runs_seen=1 and consecutive_runs=1 but sets report_count=2 and bumps last_seen.",
+      "test": "tests/acceptance_ac3.rs"
+    },
+    {
+      "id": "AC4",
+      "level": "MUST",
+      "description": "Reporting key k with new --run r2 sets runs_seen=2, consecutive_runs=2, last_run=r2.",
+      "test": "tests/acceptance_ac4.rs"
+    },
+    {
+      "id": "AC5",
+      "level": "MUST",
+      "description": "docket list --open --format json returns JSON array containing k; after docket resolve k --reason done, docket list --open omits k, docket list --resolved includes it with resolve_reason=done and non-null resolved_at.",
+      "test": "tests/acceptance_ac5.rs"
+    },
+    {
+      "id": "AC6",
+      "level": "MUST",
+      "description": "Reporting a resolved key reopens it: status=open, consecutive_runs=1, resolved_at null again.",
+      "test": "tests/acceptance_ac6.rs"
+    },
+    {
+      "id": "AC7",
+      "level": "MUST",
+      "description": "docket show <unknown-key> exits nonzero with a clear message; docket list on empty store exits 0 with empty output/[].",
+      "test": "tests/acceptance_ac7.rs"
+    },
+    {
+      "id": "AC8",
+      "level": "MUST",
+      "description": "DB is created at XDG path on first use without manual mkdir; a second invocation reuses it (report in one process, list in another, no data loss).",
+      "test": "tests/acceptance_ac8.rs"
+    },
+    {
+      "id": "AC9",
+      "level": "MUST",
+      "description": "--format json output for list and show is valid JSON parseable by python3 -m json.tool / jq .",
+      "test": "tests/acceptance_ac9.rs"
+    },
+    {
+      "id": "AC10",
+      "level": "SHOULD",
+      "description": "README documents the schema, run model, and every subcommand with a worked example (report -> list -> show -> resolve).",
+      "test": "grep -c 'docket report' README.md | awk '$1>=1{exit 0} {exit 1}'"
+    }
+  ],
+  "scope": [
+    "SQLite-backed finding store at XDG_DATA_HOME/docket/docket.db",
+    "report subcommand: upsert a finding by key, track runs_seen/consecutive_runs/report_count",
+    "list subcommand: filter by status (open/resolved/all), severity, format (text/json)",
+    "show subcommand: display full finding record, nonzero exit on unknown key",
+    "resolve subcommand: mark finding resolved with optional reason",
+    "WAL mode + BEGIN IMMEDIATE for safe concurrent report calls",
+    "Reopen semantics: resolved finding reported again becomes open with streak reset to 1"
+  ],
+  "non_goals": [
+    "Escalation at run-streak threshold (docket-escalate PRD)",
+    "Typed evidence references and trail rendering (docket-evidence PRD)",
+    "Self-review wiring / automation (docket-self-review-bind PRD)",
+    "docket digest / health envelope (docket-digest PRD)",
+    "Network access of any kind",
+    "Multi-user or remote database",
+    "Gap detection in consecutive_runs (run-id must be monotonic; gap logic is docket-escalate)"
+  ],
+  "hard_constraints": {
+    "rust_edition": "2021",
+    "target_kind": "cli",
+    "deny_unsafe": true,
+    "max_deps": 10,
+    "msrv": "1.85",
+    "additional": {
+      "no_let_chains": "MSRV 1.85 predates let-chains; do not use",
+      "bundled_sqlite": "rusqlite with bundled feature to avoid system SQLite dep"
+    }
+  },
+  "five_whys_trace": [
+    {
+      "why": 1,
+      "q": "Why build a structured finding ledger at all?",
+      "a": "The self-review skill rediscovers identical findings (e.g. 'agorabus stale binary') every run with no deduplication — the same finding appears 7 times in a single journal with no shared identity."
+    },
+    {
+      "why": 2,
+      "q": "Why does lacking a shared identity cause a real problem?",
+      "a": "Without a primary key there is no streak counter, so you cannot detect 'this finding has persisted for 3+ consecutive runs' and trigger escalation — the core signal for 'this needs owner action'."
+    },
+    {
+      "why": 3,
+      "q": "Why not encode that in recall memories or free-text journal sections?",
+      "a": "recall memories are prose blobs with no queryable fields; free-text journal sections have no cross-run identity. You cannot issue 'show me all findings surviving 3+ runs' against unstructured text."
+    },
+    {
+      "why": 4,
+      "q": "Why must it be a CLI tool rather than a library used internally by self-review?",
+      "a": "Other skills (self-review, docket-escalate, docket-self-review-bind) need to call it from bash via subprocess; a CLI with a stable verb contract is the natural IPC boundary for shell-level automation."
+    },
+    {
+      "why": 5,
+      "q": "Why SQLite rather than a plain JSONL file?",
+      "a": "Concurrent report calls from overlapping self-review iterations would corrupt a JSONL file; SQLite WAL + BEGIN IMMEDIATE provides the atomic upsert needed for correct streak counting without a daemon."
+    }
+  ],
+  "ambiguities_resolved": [
+    {
+      "question": "Should edition be 2024 or 2021?",
+      "resolution": "2021 — MSRV 1.85 supports 2024 edition but the PRD explicitly references the recall baseline constraint (no let-chains, MSRV 1.85, edition 2021)."
+    },
+    {
+      "question": "Is --evidence flag stored or parsed?",
+      "resolution": "Stored as raw TEXT string in v1; typed parsing is docket-evidence. Accept the flag now so binding PRD call sites are stable."
+    }
+  ],
+  "created_at": "2026-05-29T00:00:00Z"
+}
