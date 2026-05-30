@@ -41,6 +41,7 @@ clones, builds, and wires up everything on a fresh machine.
 | Repo | Binary | What it does |
 |---|---|---|
 | [binstale](https://github.com/j0yen/binstale) | `binstale` | Running-binary staleness detector: classifies each process's executing binary as `fresh \| deleted-exe \| inode-drift \| prov-stale` using `/proc` kernel signals and provfs xattrs. Detection only — never restarts anything. |
+| [ctrace-orphan-reap](https://github.com/j0yen/ctrace-orphan-reap) | `ctrace-orphan-reap` | Reconcile orphaned ctrace tracer state against live PIDs: classifies into `healthy`/`orphaned-tracer`/`stale-marker`/`no-tracer`; with `--apply` stops the orphan and renders its log. Read-only by default. |
 | [docket](https://github.com/j0yen/docket) | `docket` | SQLite-backed CLI ledger for standing findings — deduplicates recurring self-review discoveries by key, tracks first/last-seen timestamps and consecutive-run streak, exposes `report`/`list`/`show`/`resolve` commands. |
 | [wm-hardware-drift](https://github.com/j0yen/wm-hardware-drift) | `wm-hardware-drift` | Sweep CLI that runs both mock and `--features=real-hardware` cargo test sets, diffs per-test outcomes, and emits a `hardware-drift.json` receipt; `/self-review` surfaces any `drift_count > 0` as a finding. |
 
