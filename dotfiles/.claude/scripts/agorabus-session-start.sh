@@ -47,7 +47,19 @@ fi
 
 cwd="${CLAUDE_PROJECT_DIR:-$PWD}"
 project=$(basename "$cwd")
-sid="claude-${root}-${project}"
+
+# Derive session-id from the kernel agentns when available (wintermute kernel).
+# The kernel writes a stable 32-char hex id into /proc/self/agent_session once
+# unshare(CLONE_NEWAGENT) has been called (via agentns-claude). Falls back to
+# the PID-based synthesis on stock kernels or when the id reads all zeros.
+sid_kernel=$(cat /proc/self/agent_session 2>/dev/null || true)
+if [[ -n "$sid_kernel" ]] && [[ "$sid_kernel" != "00000000000000000000000000000000" ]]; then
+    # Use first 16 hex chars (64 bits) as a compact stable prefix.
+    sid="claude-${sid_kernel:0:16}-${project}"
+else
+    # Fallback: PID-based synthesis (stock kernels / pre-agentns-claude sessions).
+    sid="claude-${root}-${project}"
+fi
 
 # Avoid double-attaching if a subscriber for this sid already exists.
 if ! pgrep -f "agorabus subscribe --session-id $sid" >/dev/null 2>&1; then
