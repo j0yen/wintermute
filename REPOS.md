@@ -133,6 +133,7 @@ agorabus.
 | [wm-semcache](https://github.com/j0yen/wm-semcache) | — | Embedding-keyed semantic response cache: returns cached answers for near-duplicate utterances (cosine ≥ threshold) with zero API cost; cache-unsafe gate blocks stale time/weather/calendar answers from ever being served. |
 | [wm-local-llm](https://github.com/j0yen/wm-local-llm) | — | OpenAI-compatible local LLM client (ollama/llama-server/llamafile); infallible `generate` always returns Answer or Escalate-to-Sonnet; streaming DeltaSink for TTS, zero weights vendored, zero live-network in tests. |
 | [wintermute-reach](https://github.com/j0yen/wintermute-reach) | `wm-reach` | Off-device transport boundary: subscribes to `wm.family.message`/`wm.family.distress`, delivers via email (default)/ntfy/webhook, acks delivery back on the bus, provides v1 inbound-reply stub. Closes the `wm.family.ack` loop for family-intents. |
+| [wintermute-family-enroll](https://github.com/j0yen/wintermute-family-enroll) | `wm-family` | Caregiver setup wizard (kin capstone): writes `/etc/wintermute/conf.d/50-family.env` atomically; setup/show/announce subcommands; privacy-opt-in defaults (presence/silence/digest=off, distress=on); the consent ceremony every other kin service reads from. |
 
 ## License
 
