@@ -58,6 +58,10 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-29 (build): extended wintermute-brain v0.7.0→v0.8.0 from PRD-wmd-session-boundary.md: session inference (idle-gap + explicit-close phrases), SESSION_START/END bus events, history-ring clear on boundary; 278 lib tests; pushed j0yen/wintermute-brain.
+- 2026-05-30 (build): scaffolded wm-semcache v0.1.0 (rust-lib) from PRD-wm-semcache.md — embedding-keyed semantic response cache with TTL, LRU eviction, cache-unsafe gate; 26 tests (16 unit + 10 AC) green; all 8 ACs covered.
+- 2026-05-30 (build): scaffolded yearend-letter from PRD-daily-receipt-yearend-letter.md (rust-cli; year-end thermal strip, past-Claude voice, ESC/POS+PNG output; 27 tests green; local repo initialized at ~/wintermute/yearend-letter/).
+- 2026-05-30 (build): extended recall v0.11.0→v0.11.1 from PRD-recall-doctor-utility.md: doctor utility section (low/high-surface buckets, calibration_drift); 8 AC tests green; pushed j0yen/recall.
 - 2026-05-29 (build): rewrote agorabus_daemon_stale_binary playbook (self-review SKILL.md) from PRD-agorabus-reload-self-review.md — reload path uses `agorabus reload --build`, ceiling 5→25; legacy fallback preserved; escalation text drops hook re-run warning on reload path.
 - 2026-05-29 (build): shipped almanac-acknowledge v0.4.0 (rust-extend wintermute-brain) — PendingAck FSM, keyword classifier (done/snooze/unrelated), timeout with one gentle re-ask; 204 tests green; all 8 ACs covered.
 - 2026-05-29 (build): shipped agorabus-client-reconnect (v0.6.0 rust-extend) — long-lived `subscribe` loop survives daemon bounce via reconnect + bounded backoff/jitter + re-announce/re-subscribe; all 6 ACs test-covered; verified-completed & archived.
@@ -123,6 +127,7 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
   tests/hardware_acs.rs; cargo smoke verified (platform 4 / stt 6 / audio 4 ignored).
   PRD §4 documents the general pairing principle — each hardware-gated AC needs
   software pairing OR witness-gated stub. Downstream archive runs unblocked.
+- 2026-05-30 (build): shipped j0yen/wm-semcache from PRD-wm-semcache.md. Embedding-keyed semantic response cache (rust-lib); cargo test 14/14 green, clippy clean, published via wm-publish. All 7 ACs covered (paraphrase hit, no false hit, cache-unsafe gate, TTL expiry, LRU eviction, embedder degradation, deflection metrics). REPOS.md row added under "## Wintermute fleet".
 - 2026-05-28 (build): archived PRD-learning-candidate-prefilter (commit 4280bb9,
   pushed via wm-push). Shell-target: rewrote ~/.claude/scripts/recall-learning-candidate.sh
   with weighted per-pattern scoring (imperative=2 / observational=1 / capnoise=0.5),
