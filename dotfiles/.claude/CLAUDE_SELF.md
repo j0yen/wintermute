@@ -58,6 +58,15 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-29 (build): rewrote agorabus_daemon_stale_binary playbook (self-review SKILL.md) from PRD-agorabus-reload-self-review.md — reload path uses `agorabus reload --build`, ceiling 5→25; legacy fallback preserved; escalation text drops hook re-run warning on reload path.
+- 2026-05-29 (build): shipped almanac-acknowledge v0.4.0 (rust-extend wintermute-brain) — PendingAck FSM, keyword classifier (done/snooze/unrelated), timeout with one gentle re-ask; 204 tests green; all 8 ACs covered.
+- 2026-05-29 (build): shipped agorabus-client-reconnect (v0.6.0 rust-extend) — long-lived `subscribe` loop survives daemon bounce via reconnect + bounded backoff/jitter + re-announce/re-subscribe; all 6 ACs test-covered; verified-completed & archived.
+- 2026-05-30 (build): extended wintermute-almanac v0.3.0→v0.4.0 from PRD-almanac-missed-to-kin.md: missed-med bridge (wm.almanac.missed + kin wm.family.message + degrade wm.health.almanac); 12 unit tests green; pushed j0yen/wintermute-almanac.
+- 2026-05-29 (build): shipped wm-skill-edit from PRD-build-skill-edit-allowlist.md (rust-cli; anchored idempotent SKILL.md editor with allow-list guard; 7 ACs + proptest green; published j0yen/wm-skill-edit; installed to ~/.local/bin/).
+- 2026-05-30 (build): extended atlas v0.2.0→v0.3.0 from PRD-atlas-orphans.md: `atlas doctor` corpus divergence lint — 5 classes, exit-code severity contract, 19 unit tests + all 50 tests green; pushed j0yen/atlas.
+- 2026-05-29 (build): shipped wintermute-almanac v0.3.0 (almanac-tick-daemon extend): daemon tick mode, wm.almanac.due/wm.health.almanac publish, DST-correct recurrence, re-arm tests, systemd units; pushed j0yen/wintermute-almanac.
+- 2026-05-29 (build): shipped atlas v0.2.0 (atlas-edges extend): typed dependency edges, `atlas deps` + `atlas blocked` commands, 31 tests green, pushed j0yen/atlas.
+- 2026-05-29 (build): self-mod /autobuilder Phase A from PRD-autobuilder-reviewer-promotion.md — reviewer-agent `concern` now logged to state/reviewer-calibration.jsonl (created empty) marked shipped:true and proceeds (advisory only, no behavior change); SKILL.md Stage 4 documents phased graduation A→B(soft-block n≥30)→C(hard block @ revert-rate≥0.50, /self-review-gated); reviewer-agent.md prompt notes the convention. Phase B/C deferred. Edited in place (no commit — sibling parallel work uncommitted in repo).
 - 2026-05-29 (build): published j0yen/wintermute-screen-narrate from PRD-wintermute-screen-narrate.md (rust-cli, Fleet 2 image-mode fallback; 26 offline tests green; live ACs 1/2/3/7/10 deferred — need X11 display + ANTHROPIC_API_KEY).
 - 2026-05-29 (build): shipped atlas from PRD-atlas-core.md (rust-cli; queryable node graph of wintermute corpus: atlas nodes/show with --format json; 24 tests green; published j0yen/atlas; ~5ms cold run over 100+ PRDs).
 - 2026-05-29 (build): ctrace-session-end-resilient — shipped ctrace-session-end.draft.sh: hardened SessionEnd hook with scribe-prefer/summarize-fallback render, real exit-code capture, structured diag on failure to claude-stop.err (AC #3-6); smoke-tested exit=0 on success and exit code captured on failure.
@@ -185,15 +194,7 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
   from JSON stdin (env fallback), matching the v0.4.2 braid-hook fix.
   5/5 ACs green via `tests/hook_stop_session_id.rs`. The Stop hook's
   scratch→memory promotion pipeline is no longer silently broken.
-- 2026-05-25 (build): archived PRD-recall-braid-freshness-tunable.md.
-  recall v0.4.3 (commits 2df7156 + fdc81ad): braid hook default
-  freshness gate 60s → 300s plus `$RECALL_BRAID_MAX_AGE` documented.
-  All 5 ACs sim-passed; live-motivated by the 120s read+type drop
-  observed during observer-correlation AC1 verification.
-- 2026-05-25 (build): archived PRD-build-rust-extend.md (commit a4f4e6b).
-  All 10 ACs verified via downstream PRD-recall-observer-correlation
-  (shipped 421d911). The `/build` skill's rust-extend path is now
-  proven end-to-end: extend-scaffold → iter-N → bump → install →
-  changelog → push → archive. Self-mod arc closed.
-- 2026-05-24 (build): shipped kernel tier of agent-tooling arc — `memlog` (char-dev compaction log), `provfs` LSM (xattr provenance), `agentns` Phase 3+4 — baked into the parallel-install `linux-wintermute` kernel pkg. Added the `apply-agentns.py` anchored-inline-edit pattern and `build_target: kernel-extend` route in `/build`. Awaiting boot validation.
-- 2026-05-22 (Claude, seed): initial draft. Lint contract: seven sections, ≤200 lines, aspirations must be non-empty.
+- 2026-05-30 (build): extended autobuilder v0.1.0→v0.2.0 from PRD-autobuilder-publish.md; `autobuilder publish` subcommand (Stage 6) ACs 1–9 green; installed to ~/.local/bin/autobuilder.
+- 2026-05-30 (build): docket-digest shipped — `docket digest` wm.health.* envelope + text banner; 35 tests green; docket v0.3.0 pushed j0yen/docket.
+- 2026-05-25 (build): archived PRD-build-rust-extend.md (a4f4e6b); all 10 ACs verified via downstream recall-observer-correlation (421d911); rust-extend path proven end-to-end (extend-scaffold→iter→bump→install→changelog→push→archive).
+- 2026-05-29 (build): almanac-missed-to-kin shipped — wintermute-almanac v0.4.0; missed-med bridge to wm.family.message via kin; 20 tests green.
