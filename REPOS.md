@@ -42,6 +42,7 @@ clones, builds, and wires up everything on a fresh machine.
 |---|---|---|
 | [binstale](https://github.com/j0yen/binstale) | `binstale` | Running-binary staleness detector: classifies each process's executing binary as `fresh \| deleted-exe \| inode-drift \| prov-stale` using `/proc` kernel signals and provfs xattrs. Detection only — never restarts anything. |
 | [docket](https://github.com/j0yen/docket) | `docket` | SQLite-backed CLI ledger for standing findings — deduplicates recurring self-review discoveries by key, tracks first/last-seen timestamps and consecutive-run streak, exposes `report`/`list`/`show`/`resolve` commands. |
+| [wm-hardware-drift](https://github.com/j0yen/wm-hardware-drift) | `wm-hardware-drift` | Sweep CLI that runs both mock and `--features=real-hardware` cargo test sets, diffs per-test outcomes, and emits a `hardware-drift.json` receipt; `/self-review` surfaces any `drift_count > 0` as a finding. |
 
 ## Memory layer
 
@@ -84,6 +85,7 @@ patterns are useful, not because they're meant to be reused as-is.
 | [day-summarize](https://github.com/j0yen/day-summarize) | Upstream producer for `daily-receipt`: gathers ctrace + git + recall + journal + stamp signals into `summary.json` (canonical-ordered, byte-deterministic). Best-effort on missing tools; never panics. |
 | [day-stamps](https://github.com/j0yen/day-stamps) | Special-day stamp catalog + lookup for `daily-receipt`: `day-stamp add\|list\|render\|which\|seed` over date-specific + recurring JSON stamps (pre-rendered ESC/POS bytes keyed by date). Read by `day-summarize` and `day-haiku`. |
 | [day-haiku](https://github.com/j0yen/day-haiku) | The "art" half of `daily-receipt`: reads `day-summarize`'s `summary.json`, calls Claude (cached system + past-claude few-shot, ephemeral daily block) and writes a schema-guarded 3-line haiku into `content.json`. `--re-roll` veto path, fail-open exit codes so a bad response never breaks the nightly print. |
+| [yearend-letter](https://github.com/j0yen/yearend-letter) | Year-end thermal strip for the daily-receipt ritual: composes a ~200–400 word letter in the past-Claude / future-Claude voice from the year's cadence records, renders to ESC/POS + PNG, with idempotent caching and a systemd-user timer firing at Dec 31 23:55. The scroll's annual punctuation. |
 | [fsstory](https://github.com/j0yen/fsstory) | Filesystem attribution timeline: who-changed-what when a file changes. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/fsstory/main/install.sh \| bash`. |
 | [letters-we-never-sent](https://github.com/j0yen/letters-we-never-sent) | Monthly draft-ritual aggregator over `~/.claude/letters/`. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/letters-we-never-sent/main/install.sh \| bash`. |
 | [morsel](https://github.com/j0yen/morsel) | Embeddable inference primitives for tiny neural networks in Rust (Linear, Sigmoid, Tanh, ReLU, Softmax, LSTM, Argmax). Allocation-free, deterministic, safe-Rust. The library half of the morsel / morsel-bake pair; weights are baked into source by morsel-bake. |
