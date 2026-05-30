@@ -58,6 +58,7 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-05-30 (build): wired agentns-wrap from PRD-claude-agentns-wrap.md — claude() shell fn in ~/.zshrc, agentns-claude prefix in build/dream/self-review headless scripts, kernel agent_session sid in agorabus-session-start.sh.
 - 2026-05-29 (build): extended wintermute-brain v0.7.0→v0.8.0 from PRD-wmd-session-boundary.md: session inference (idle-gap + explicit-close phrases), SESSION_START/END bus events, history-ring clear on boundary; 278 lib tests; pushed j0yen/wintermute-brain.
 - 2026-05-30 (build): scaffolded wm-semcache v0.1.0 (rust-lib) from PRD-wm-semcache.md — embedding-keyed semantic response cache with TTL, LRU eviction, cache-unsafe gate; 26 tests (16 unit + 10 AC) green; all 8 ACs covered.
 - 2026-05-30 (build): scaffolded yearend-letter from PRD-daily-receipt-yearend-letter.md (rust-cli; year-end thermal strip, past-Claude voice, ESC/POS+PNG output; 27 tests green; local repo initialized at ~/wintermute/yearend-letter/).
@@ -171,34 +172,9 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
   build. REPOS.md row added under "## Wintermute fleet" after wintermute-tts.
   NOT archived yet — whisper feature compile gated on cmake/whisper.cpp;
   ACs needing real-inference smoke remain unverified.
-- 2026-05-27 (build): shipped j0yen/wintermute-platform from PRD-wintermute-platform.md
-  (iter-16, HEAD c81e136). 6-tick classifier-block streak (iter-10..15) broken
-  on first wm-publish invocation. README + LICENSEs already in place from
-  iter-13/-14; cargo test --release --lib 41/41 green pre-push. REPOS.md row
-  added under "## Wintermute fleet" between bootstrap and tts. NOT archived
-  yet — AC pairing still partial (ACs 1/2/5/7/8 need live-systemd or
-  wm-mute/wm-logs wiring).
-- 2026-05-27 (build): shipped j0yen/wintermute-bootstrap from PRD-wintermute-bootstrap.md
-  (iter-17, HEAD d528a96). 8-tick classifier-block streak (iter-10..16) broken
-  by wm-publish wrapper landed via PRD-build-publish-allowlist. All 7 ACs paired
-  in iter log (AC1 mDNS, AC2 manual/timing, AC3 invalid-key block, AC4
-  systemctl-once, AC5 idempotent skip, AC6 --reconfigure prefill, AC7 no
-  sensitive-value log). REPOS.md row added under "## Wintermute fleet".
-- 2026-05-27 (build): shipped j0yen/wintermute-tts from PRD-wintermute-tts.md
-  (iter-19, commit 6c8a580). Classifier publish gate OPENED for this PRD —
-  sibling fleet (bootstrap/platform/stt) still gated. README.md landed; REPOS.md
-  gained new "## Wintermute fleet" section. Hardware-timing ACs 1/3/5/7 remain
-  #[ignore]-gated; AC2/4/6/8 paired in iter log.
-- 2026-05-27 (build): archived PRD-recall-outcome-feedback.md (commit 574766c).
-  recall v0.6.0 (range 3abdf7b..be2bd15): outcome-feedback *weather* —
-  accept/reject/decay-sweep math, `[feedback]` config + `feedback_count` column,
-  Stop-hook auto-accept (recall 41c0825 + dotfiles 641e3b7), doctor
-  `confidence_drift`. 7/7 ACs paired; push landed origin/main.
-- 2026-05-26 (build): archived PRD-recall-stop-hook-session-id.md (commit d58aadb).
-  recall v0.5.1 (commit 32590f2): `hooks/stop.sh` now reads `.session_id`
-  from JSON stdin (env fallback), matching the v0.4.2 braid-hook fix.
-  5/5 ACs green via `tests/hook_stop_session_id.rs`. The Stop hook's
-  scratch→memory promotion pipeline is no longer silently broken.
+- 2026-05-27 (build): shipped j0yen/wintermute-platform, wintermute-bootstrap, wintermute-tts from respective PRDs; REPOS.md "Wintermute fleet" section added.
+- 2026-05-27 (build): archived PRD-recall-outcome-feedback.md; recall v0.6.0 outcome-feedback weather; 7/7 ACs.
+- 2026-05-26 (build): archived PRD-recall-stop-hook-session-id.md; recall v0.5.1 stop hook session-id fix; 5/5 ACs.
 - 2026-05-30 (build): extended autobuilder v0.1.0→v0.2.0 from PRD-autobuilder-publish.md; `autobuilder publish` subcommand (Stage 6) ACs 1–9 green; installed to ~/.local/bin/autobuilder.
 - 2026-05-30 (build): docket-digest shipped — `docket digest` wm.health.* envelope + text banner; 35 tests green; docket v0.3.0 pushed j0yen/docket.
 - 2026-05-25 (build): archived PRD-build-rust-extend.md (a4f4e6b); all 10 ACs verified via downstream recall-observer-correlation (421d911); rust-extend path proven end-to-end (extend-scaffold→iter→bump→install→changelog→push→archive).
