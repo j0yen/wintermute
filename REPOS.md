@@ -129,6 +129,7 @@ agorabus.
 | [wintermute-mail](https://github.com/j0yen/wintermute-mail) | `wm-mail` | Fleet 2 action layer: voice-driven IMAP/SMTP mail daemon; inbox/read/send/search/mark-read/delete/folders over agorabus, async-imap + lettre (rustls), SecretService credentials, IMAP IDLE new-mail signal, verbal-confirm on destructive send/delete. |
 | [wintermute-almanac](https://github.com/j0yen/wintermute-almanac) | `wm-almanac` | Local offline store of recurring routine entries for the elder (med/meal/appt/activity); daily/weekly/once recurrences, per-entry enable/disable, DST-correct next-due; no network, no bus. The schedule model every almanac-* PRD builds on. |
 | [wm-verify](https://github.com/j0yen/wm-verify) | — | Pure in-process quality gate for local LLM answers: catches shape failures (empty, refusal, looping, wrong language, disclaimer, non-answer) before they reach the user. No network, no model call, deterministic. Library consumed by the brain backend ladder. |
+| wm-local-llm | — | OpenAI-compatible local LLM client (ollama/llama-server/llamafile); infallible `generate` always returns Answer or Escalate-to-Sonnet; streaming DeltaSink for TTS, zero weights vendored, zero live-network in tests. |
 
 ## License
 
