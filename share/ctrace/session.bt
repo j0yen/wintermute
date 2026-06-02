@@ -24,6 +24,20 @@ tracepoint:sched:sched_process_fork
     @track[args->child_pid] = 1;
 }
 
+/* Self-terminate when the traced root process itself exits. Without this the
+ * tracer idles forever after the session ends; because it is root-owned (sudo
+ * bpftrace) it then survives systemd cgroup teardown, stranding in the dead
+ * unit's cgroup and blocking its GC (which jams the /build timer). exit() runs
+ * the END probe and tears the tracer down cleanly. Checked before the generic
+ * delete below so the root's own exit always reaches exit(). */
+tracepoint:sched:sched_process_exit
+/tid == pid && pid == (uint32)$1/
+{
+    printf("{\"ts\":%lu,\"type\":\"root_exit\",\"pid\":%d}\n",
+           nsecs / 1000000, $1);
+    exit();
+}
+
 /* sched_process_exit fires per thread exit. Only delete when the
  * exiting task is the thread-group leader (tid == pid) so a worker
  * thread's exit doesn't drop tracking for the still-running process. */
