@@ -58,6 +58,22 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - I do not bypass the auto-mode classifier for actions it has blocked.
 
 ## Changelog
+- 2026-06-03 (build): extended recall v0.13.0→v0.14.0 from PRD-recall-corpus-vacuum.md — `recall vacuum` subcommand (decay/supersede/archive sweep of high-surface/zero-use memories); merged build/ branch, resolved index.rs keep-both vs stop-hook; AC1-AC8 all paired (added AC8 playbook-count test); installed v0.14.0; pushed origin/main; archived. Closes the prior premature-"done" hold.
+- 2026-06-03 (build): shipped wintermute-desktop from PRD-wintermute-desktop.md — AT-SPI tree reader + keystroke injector; ACs 2/5/6/7/8/9 paired, ACs 1/3/4/10 deferred (live X11/AT-SPI); PRD archived.
+- 2026-06-03 (build): extended wintermute-platform v0.5.0 from PRD-wintermute-fleet-install-doctor.md — wm doctor subcommand, 6/6 ACs paired, archived to shipped
+- 2026-06-03 (build): archive-gate tick (7-wide, distinct repos) — shipped 5 verified-completed (earshot-gentle-reprompt→dialog; hearth-persona-config→brain v0.12.0; wintermute-companion-boot→platform v0.3.0; rouse-voice-selftest→audio v0.6.0; vigil-install-restart→rollout); wintermute-desktop reinstalled current binary (built); recall-corpus-vacuum HELD in_progress — "done" was premature, all 8 ACs unimplemented (no vacuum subcommand). No tautological pairing.
+- 2026-06-03 (build): verify-and-gate tick (7-wide, distinct repos) — shipped 3 verified-completed (wmd-session-recap→brain 10/10 ACs; hearth-dialog-degrade-warmth→dialog 7/7; autobuilder-publish→autobuilder 9/9+AC10 deferred); 4 honestly blocked w/ real gaps recorded (fleet-install-doctor AC2/5 no-test; docket-escalate AC10 README; rouse-voice-selftest AC5/7/8 models-absent; vigil-install-restart 7 ACs+clippy-D). No tautological pairing.
+- 2026-06-03 (build): extended wintermute-audio v0.6.0→v0.7.0 from PRD-wintermute-wake-mel-frontend.md — mel frontend [1,186,40], shape contract fix, honest manifest; land blocked (main dirty)
+- 2026-06-03 (build): archive-gate tick — shipped 3 (unit-recovery-watchdog→platform v0.4.0; almanac-speak-bridge→brain v0.5.0; binstale-self-review→self-review SKILL B.5); fixed wintermute-desktop agorabus ^0.4→^0.8 (51 tests, push pending); 6 not-ready w/ recorded gaps (publish/README/CHANGELOG/clippy/whisper-build)
+- 2026-06-02 (build): archived agorabus-drain-notice (shipped, agorabus v0.7.0 graceful drain notice; 5 AC tests green, origin/main reachable) — path-scoped commit, dirty tree untouched
+- 2026-06-02 (build): archived 3 verified-completed extends — agentns-session-receipt, agorabus-doctor-selfstale, binstale-source-cmp (cargo green + pushed); atlas-render & daily-receipt-archive held in_progress (untested ACs)
+- 2026-06-02 (build): extended+shipped wintermute-brain v0.15.0→0.15.1 (deterministic AC5 prompt-cache ratio test), archived brain-prompt-cache verified-completed from PRD-brain-prompt-cache.md
+- 2026-06-02 (build): verified agentns-doctor-self-review draft AC1-8 green (AC9 user-gated swap) from PRD-agentns-doctor-self-review.md
+- 2026-06-02 (build): reconciled+archived recall-temporal-decay (shipped in recall v0.11.x) from PRD-recall-temporal-decay.md
+- 2026-06-02 (build): committed linux-wintermute.install pkgrel=11 auto-memlog-group-join scriptlet from PRD-memlog-group-autojoin.md
+- 2026-06-02 (build): extended bpolicy v0.1→v0.2 from PRD-warden-policy.md — policy.toml loader, BPF allowlist map, `load --profile`, `policy show/check`
+- 2026-06-02 (build): wired warden:/bpolicy health line + B.5 escalation into self-review from PRD-warden-self-review.md
+- 2026-06-02 (build): added concurrent-build guard to agorabus_daemon_stale_binary playbook — defers auto-fix when claude-build-work.service is active/activating or index.lock is present.
 - 2026-05-30 (build): wired agentns-wrap from PRD-claude-agentns-wrap.md — claude() shell fn in ~/.zshrc, agentns-claude prefix in build/dream/self-review headless scripts, kernel agent_session sid in agorabus-session-start.sh.
 - 2026-05-29 (build): extended wintermute-brain v0.7.0→v0.8.0 from PRD-wmd-session-boundary.md: session inference (idle-gap + explicit-close phrases), SESSION_START/END bus events, history-ring clear on boundary; 278 lib tests; pushed j0yen/wintermute-brain.
 - 2026-05-30 (build): scaffolded wm-semcache v0.1.0 (rust-lib) from PRD-wm-semcache.md — embedding-keyed semantic response cache with TTL, LRU eviction, cache-unsafe gate; 26 tests (16 unit + 10 AC) green; all 8 ACs covered.
@@ -89,8 +105,6 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - 2026-05-28 (build): published j0yen/session-postmortem from PRD-session-postmortem.md (rust-cli, 26+9 ACs green, 1 ignored=AC9 deferred-upstream; README+REPOS done; archive pending verified-completed gate next tick).
 - 2026-05-28 (build): shipped j0yen/cadence from PRD-cadence-substrate.md (shared time-pyramid record store: record/list/latest/register/where; 16 tests green, all 5 gates verified; archived 1427708).
 - 2026-05-28 (build): shipped j0yen/day-stamps from PRD-daily-receipt-stamps.md (9/9 ACs + 2 proptests green; all 5 gates verified live; archived 9ee11d9).
-- 2026-05-28 (build): shipped j0yen/day-summarize from PRD-daily-receipt-summarize.md (9/9 ACs green; all 5 gates verified live; archived 10aa799).
-- 2026-05-28 (build): shipped j0yen/daily-receipt-printer from PRD-daily-receipt-printer.md (9/9 ACs green; all 5 gates verified; archived 83ff31f; timer-enable is a separate user gate).
 - 2026-05-28 (build): self-mod shipped PRD-build-parser-bold-frontmatter —
   scan-prds.sh now normalizes `**key:** value` to `key: value` before the
   case dispatch, so the 13 cadence-* and daily-receipt-* PRDs with
@@ -179,3 +193,8 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
 - 2026-05-30 (build): docket-digest shipped — `docket digest` wm.health.* envelope + text banner; 35 tests green; docket v0.3.0 pushed j0yen/docket.
 - 2026-05-25 (build): archived PRD-build-rust-extend.md (a4f4e6b); all 10 ACs verified via downstream recall-observer-correlation (421d911); rust-extend path proven end-to-end (extend-scaffold→iter→bump→install→changelog→push→archive).
 - 2026-05-29 (build): almanac-missed-to-kin shipped — wintermute-almanac v0.4.0; missed-med bridge to wm.family.message via kin; 20 tests green.
+- 2026-05-30 (build): shipped wintermute-reach from PRD-wintermute-reach.md; off-device transport daemon (email/ntfy/webhook, distress bypass, ack loop); 11 ACs green; j0yen/wintermute-reach published.
+- 2026-06-02 (build): extended bpolicy v0.2.1→v0.3.0 from PRD-warden-deadman.md (rebased onto warden-policy; audit mode + deadman timer + --yes interlock coexist with --profile; bpf map renamed config→bpolicy_config for vmlinux.h collision; 61 lib tests green, bpf.o compiles).
+- 2026-06-02 (build): verified memlog-precompact-witness — hook+reader wired; ACs 1–5,7 green; AC6 deferred (memlog group not yet joined).
+- 2026-06-02 (build): shipped morsel from PRD-morsel.md — embeddable ML primitives (Linear, Sigmoid, Tanh, ReLU, Softmax, LSTM, Argmax); 7 unit + 11 doc-tests green; j0yen/morsel published.
+- 2026-06-03 (build): extended recall v0.12.0 from PRD-recall-surfaced-tracking.md; surfaced_count column + feedback --surfaced flag; AC1-AC3,AC7 green, AC4-AC6 deferred; j0yen/recall pushed.
