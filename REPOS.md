@@ -139,6 +139,7 @@ agorabus.
 | [wintermute-reach](https://github.com/j0yen/wintermute-reach) | `wm-reach` | Off-device transport boundary: subscribes to `wm.family.message`/`wm.family.distress`, delivers via email (default)/ntfy/webhook, acks delivery back on the bus, provides v1 inbound-reply stub. Closes the `wm.family.ack` loop for family-intents. |
 | [wintermute-family-enroll](https://github.com/j0yen/wintermute-family-enroll) | `wm-family` | Caregiver setup wizard (kin capstone): writes `/etc/wintermute/conf.d/50-family.env` atomically; setup/show/announce subcommands; privacy-opt-in defaults (presence/silence/digest=off, distress=on); the consent ceremony every other kin service reads from. |
 | [wintermute-presence](https://github.com/j0yen/wintermute-presence) | `wm-presence` | Privacy-first presence heartbeat daemon: emits `wm.presence.summon` on each interaction (count only, never text) and `wm.presence.silence` when no interaction falls in the configured waking-hours window. Default OFF; enrolls via `wm-family`. |
+| [wintermute-lucid](https://github.com/j0yen/wintermute-lucid) | `wm-lucid` | Flight recorder for the agorabus bus: subscribes to the full `wm.` prefix, persists every event to a rotating turn-keyed NDJSON log under `~/.cache/wintermute/lucid/`, ships `lucid tap/trace/mind/explain/watch` subcommands for live tailing and post-hoc turn reconstruction. |
 
 ## Constellation fleet
 
