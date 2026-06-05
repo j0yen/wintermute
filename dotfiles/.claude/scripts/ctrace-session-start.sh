@@ -5,6 +5,16 @@
 
 set -u
 
+# Never trace the ephemeral headless /build sessions. ctrace launches a
+# root-owned `sudo bpftrace`; when it runs inside claude-build-work.service it
+# lingers in that cgroup as root, and user-systemd can't kill it ("Operation
+# not permitted") -> stop-sigterm timeout -> the unit fails and knocks
+# claude-build.timer offline, and the teardown SIGKILL storm can hang
+# terminals. Skip any session whose cgroup is a claude-build* unit. (2026-06-05)
+if grep -q 'claude-build' /proc/self/cgroup 2>/dev/null; then
+    exit 0
+fi
+
 ctrace=/home/jsy/.local/bin/ctrace
 cache=/home/jsy/.cache/ctrace
 sessions="$cache/sessions"
