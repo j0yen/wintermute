@@ -152,3 +152,9 @@ Multi-machine expansion of the wintermute ecosystem — fleet provisioning, mesh
 ## License
 
 Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
+
+Homeward (lost-pet)
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [homeward](https://github.com/j0yen/homeward) | `homeward` | A dozen heterogeneous sources describe the same thing — a dog or cat in a shelter |
