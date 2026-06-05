@@ -140,6 +140,15 @@ agorabus.
 | [wintermute-family-enroll](https://github.com/j0yen/wintermute-family-enroll) | `wm-family` | Caregiver setup wizard (kin capstone): writes `/etc/wintermute/conf.d/50-family.env` atomically; setup/show/announce subcommands; privacy-opt-in defaults (presence/silence/digest=off, distress=on); the consent ceremony every other kin service reads from. |
 | [wintermute-presence](https://github.com/j0yen/wintermute-presence) | `wm-presence` | Privacy-first presence heartbeat daemon: emits `wm.presence.summon` on each interaction (count only, never text) and `wm.presence.silence` when no interaction falls in the configured waking-hours window. Default OFF; enrolls via `wm-family`. |
 
+## Constellation fleet
+
+Multi-machine expansion of the wintermute ecosystem — fleet provisioning, mesh networking, and coordinated deployment.
+
+| Repo | Binary | Description |
+|------|--------|-------------|
+| [constellation](~/wintermute/constellation) | — | Fleet provisioning repo: Ansible playbooks (base/desktop/voice roles), greetd autologin + i3 graphical-session bridge, host_vars per-node config, isobuild archiso profile, and localrepo scripts — one ISO + one playbook run = an identical wintermute node. |
+| [agorabus-nats-bridge](https://github.com/j0yen/agorabus-nats-bridge) | `wm-busbridge` | agorabus ↔ NATS bridge daemon: mirrors allowlisted `wm.fleet.*` events between the local agorabus UDS and a NATS leaf node, loop-guarded and bandwidth-selective — the keystone that makes the local wintermute bus fleet-wide. |
+
 ## License
 
 Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
