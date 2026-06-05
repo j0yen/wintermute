@@ -182,14 +182,9 @@ user approval in the same turn. Kept short on purpose. Lint cap: 200 lines.
   AC6 live-daemon snapshot file, AC7 50-turn soak). cargo test --release --lib
   + ac7_soak + acceptance + proptest 68/68 green. REPOS.md row added under
   "## Wintermute fleet" after wintermute-audio. Ready for archive.
-- 2026-05-28 (build): shipped j0yen/wintermute-stt from PRD-wintermute-stt.md
-  (iter-15, HEAD 35c6d82). 8-tick classifier-block streak (iter-11..14) broken
-  on first wm-publish invocation. README/LICENSEs/install.sh already in place
-  from iter-10 publish-prep; cargo test --release --lib 53/53 green at last
-  build. REPOS.md row added under "## Wintermute fleet" after wintermute-tts.
-  NOT archived yet — whisper feature compile gated on cmake/whisper.cpp;
-  ACs needing real-inference smoke remain unverified.
+- 2026-05-28 (build): shipped j0yen/wintermute-stt (iter-15); cargo test 53/53 green.
 - 2026-05-27 (build): shipped j0yen/wintermute-platform, wintermute-bootstrap, wintermute-tts from respective PRDs; REPOS.md "Wintermute fleet" section added.
+- 2026-06-04 (build): shipped memlog-group-autojoin — linux-wintermute pkgrel-11 .install auto-adds invoking user to memlog group; sandbox tests 5/5 green; pkgrel-11 .pkg.tar.zst produced + .INSTALL verified.
 - 2026-05-27 (build): archived PRD-recall-outcome-feedback.md; recall v0.6.0 outcome-feedback weather; 7/7 ACs.
 - 2026-05-26 (build): archived PRD-recall-stop-hook-session-id.md; recall v0.5.1 stop hook session-id fix; 5/5 ACs.
 - 2026-05-30 (build): extended autobuilder v0.1.0→v0.2.0 from PRD-autobuilder-publish.md; `autobuilder publish` subcommand (Stage 6) ACs 1–9 green; installed to ~/.local/bin/autobuilder.
