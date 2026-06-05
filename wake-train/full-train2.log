@@ -1,0 +1,332 @@
+[18:11:53] STAGE deps: verifying venv + imports
+[18:11:53] deps: compat patch already applied (or N/A) — skipping
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1780535514.110786  939847 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1780535514.143636  939847 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1780535515.376735  939847 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+deps OK — TF 2.21.0
+[18:11:57] STAGE positives: generating 1500 'wintermute' samples
+DEBUG:__main__:Loading /home/jsy/wintermute/wake-train/wintermute-train/piper-sample-generator/models/en_US-libritts_r-medium.pt
+INFO:__main__:Successfully loaded the model
+DEBUG:__main__:Batch 1/11 complete
+DEBUG:__main__:Batch 2/11 complete
+DEBUG:__main__:Batch 3/11 complete
+DEBUG:__main__:Batch 4/11 complete
+DEBUG:__main__:Batch 5/11 complete
+DEBUG:__main__:Batch 6/11 complete
+DEBUG:__main__:Batch 7/11 complete
+DEBUG:__main__:Batch 8/11 complete
+DEBUG:__main__:Batch 9/11 complete
+DEBUG:__main__:Batch 10/11 complete
+DEBUG:__main__:Batch 11/11 complete
+DEBUG:__main__:Batch 12/11 complete
+INFO:__main__:Done
+[18:13:16] positives: 1500 wav files
+[18:13:16] STAGE augment-data: fetching MIT RIRs (+ ambient for FA estimate)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/iterable_dataset.py", line 2690, in __iter__
+    for key, example in ex_iterable:
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/iterable_dataset.py", line 2240, in __iter__
+    example = _apply_feature_types_on_example(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/iterable_dataset.py", line 2157, in _apply_feature_types_on_example
+    encoded_example = features.encode_example(example)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/features/features.py", line 2152, in encode_example
+    return encode_nested_example(self, example)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/features/features.py", line 1437, in encode_nested_example
+    {k: encode_nested_example(schema[k], obj.get(k), level=level + 1) for k in schema}
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/features/features.py", line 1437, in <dictcomp>
+    {k: encode_nested_example(schema[k], obj.get(k), level=level + 1) for k in schema}
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/features/features.py", line 1460, in encode_nested_example
+    return schema.encode_example(obj) if obj is not None else None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/features/audio.py", line 108, in encode_example
+    from torchcodec.encoders import AudioEncoder  # needed to write audio files
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/__init__.py", line 12, in <module>
+    from . import decoders, encoders, samplers, transforms  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/decoders/__init__.py", line 7, in <module>
+    from .._core import AudioStreamMetadata, VideoStreamMetadata
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_core/__init__.py", line 8, in <module>
+    from ._metadata import (
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_core/_metadata.py", line 15, in <module>
+    from torchcodec._core.ops import (
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_core/ops.py", line 38, in <module>
+    load_torchcodec_shared_libraries()
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 111, in load_torchcodec_shared_libraries
+    raise RuntimeError(
+RuntimeError: Could not load libtorchcodec. Likely causes:
+          1. FFmpeg is not properly installed in your environment. We support
+             versions 4, 5, 6, 7, and 8, and we attempt to load libtorchcodec
+             for each of those versions. Errors for versions not installed on
+             your system are expected; only the error for your installed FFmpeg
+             version is relevant. On Windows, ensure you've installed the
+             "full-shared" version which ships DLLs.
+          2. The PyTorch version (2.12.0+cpu) is not compatible with
+             this version of TorchCodec. Refer to the version compatibility
+             table:
+             https://github.com/pytorch/torchcodec?tab=readme-ov-file#installing-torchcodec.
+          3. Another runtime dependency; see exceptions below.
+
+        The following exceptions were raised as we tried to load libtorchcodec:
+        
+[start of libtorchcodec loading traceback]
+FFmpeg version 8:
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1509, in load_library
+    ctypes.CDLL(path)
+  File "/home/jsy/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libnvrtc.so.13: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 93, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1511, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/libtorchcodec_core8.so
+
+FFmpeg version 7:
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1509, in load_library
+    ctypes.CDLL(path)
+  File "/home/jsy/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libnvrtc.so.13: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 93, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1511, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/libtorchcodec_core7.so
+
+FFmpeg version 6:
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1509, in load_library
+    ctypes.CDLL(path)
+  File "/home/jsy/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libnvrtc.so.13: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 93, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1511, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/libtorchcodec_core6.so
+
+FFmpeg version 5:
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1509, in load_library
+    ctypes.CDLL(path)
+  File "/home/jsy/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libnvrtc.so.13: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 93, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1511, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/libtorchcodec_core5.so
+
+FFmpeg version 4:
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1509, in load_library
+    ctypes.CDLL(path)
+  File "/home/jsy/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libnvrtc.so.13: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 93, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1511, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/libtorchcodec_core4.so
+[end of libtorchcodec loading traceback].
+[18:13:19] STAGE features: pulling pre-generated negative features + generating positive features
+[gen_features] positives: 1500 wavs; smoke=False
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1780535600.523416  940148 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1780535600.561662  940148 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1780535601.745605  940148 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/gen_features.py", line 152, in <module>
+    main()
+  File "/home/jsy/wintermute/wake-train/wintermute-train/gen_features.py", line 146, in main
+    build_positive_features(Path(args.positives), root, smoke)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/gen_features.py", line 95, in build_positive_features
+    rir_dir = fetch_rirs(root, smoke)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/gen_features.py", line 47, in fetch_rirs
+    for row in ds:
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/iterable_dataset.py", line 2690, in __iter__
+    for key, example in ex_iterable:
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/iterable_dataset.py", line 2240, in __iter__
+    example = _apply_feature_types_on_example(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/iterable_dataset.py", line 2157, in _apply_feature_types_on_example
+    encoded_example = features.encode_example(example)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/features/features.py", line 2152, in encode_example
+    return encode_nested_example(self, example)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/features/features.py", line 1437, in encode_nested_example
+    {k: encode_nested_example(schema[k], obj.get(k), level=level + 1) for k in schema}
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/features/features.py", line 1437, in <dictcomp>
+    {k: encode_nested_example(schema[k], obj.get(k), level=level + 1) for k in schema}
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/features/features.py", line 1460, in encode_nested_example
+    return schema.encode_example(obj) if obj is not None else None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/datasets/features/audio.py", line 108, in encode_example
+    from torchcodec.encoders import AudioEncoder  # needed to write audio files
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/__init__.py", line 12, in <module>
+    from . import decoders, encoders, samplers, transforms  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/decoders/__init__.py", line 7, in <module>
+    from .._core import AudioStreamMetadata, VideoStreamMetadata
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_core/__init__.py", line 8, in <module>
+    from ._metadata import (
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_core/_metadata.py", line 15, in <module>
+    from torchcodec._core.ops import (
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_core/ops.py", line 38, in <module>
+    load_torchcodec_shared_libraries()
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 111, in load_torchcodec_shared_libraries
+    raise RuntimeError(
+RuntimeError: Could not load libtorchcodec. Likely causes:
+          1. FFmpeg is not properly installed in your environment. We support
+             versions 4, 5, 6, 7, and 8, and we attempt to load libtorchcodec
+             for each of those versions. Errors for versions not installed on
+             your system are expected; only the error for your installed FFmpeg
+             version is relevant. On Windows, ensure you've installed the
+             "full-shared" version which ships DLLs.
+          2. The PyTorch version (2.12.0+cpu) is not compatible with
+             this version of TorchCodec. Refer to the version compatibility
+             table:
+             https://github.com/pytorch/torchcodec?tab=readme-ov-file#installing-torchcodec.
+          3. Another runtime dependency; see exceptions below.
+
+        The following exceptions were raised as we tried to load libtorchcodec:
+        
+[start of libtorchcodec loading traceback]
+FFmpeg version 8:
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1509, in load_library
+    ctypes.CDLL(path)
+  File "/home/jsy/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libnvrtc.so.13: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 93, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1511, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/libtorchcodec_core8.so
+
+FFmpeg version 7:
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1509, in load_library
+    ctypes.CDLL(path)
+  File "/home/jsy/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libnvrtc.so.13: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 93, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1511, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/libtorchcodec_core7.so
+
+FFmpeg version 6:
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1509, in load_library
+    ctypes.CDLL(path)
+  File "/home/jsy/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libnvrtc.so.13: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 93, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1511, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/libtorchcodec_core6.so
+
+FFmpeg version 5:
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1509, in load_library
+    ctypes.CDLL(path)
+  File "/home/jsy/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libnvrtc.so.13: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 93, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1511, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/libtorchcodec_core5.so
+
+FFmpeg version 4:
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1509, in load_library
+    ctypes.CDLL(path)
+  File "/home/jsy/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libnvrtc.so.13: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/_internally_replaced_utils.py", line 93, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torch/_ops.py", line 1511, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/torchcodec/libtorchcodec_core4.so
+[end of libtorchcodec loading traceback].
+feature generation FAILED
+[EXIT 1]

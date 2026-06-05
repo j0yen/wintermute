@@ -1,0 +1,28 @@
+[18:15:46] STAGE augment-data: fetching MIT RIRs (+ ambient for FA estimate)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+RIRs: 200
+[18:16:11] STAGE features: pulling pre-generated negative features + generating positive features
+[gen_features] positives: 1500 wavs; smoke=False
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1780535773.032304  940799 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1780535773.072057  940799 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1780535774.311721  940799 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+Traceback (most recent call last):
+  File "/home/jsy/wintermute/wake-train/wintermute-train/gen_features.py", line 152, in <module>
+    main()
+  File "/home/jsy/wintermute/wake-train/wintermute-train/gen_features.py", line 146, in main
+    build_positive_features(Path(args.positives), root, smoke)
+  File "/home/jsy/wintermute/wake-train/wintermute-train/gen_features.py", line 102, in build_positive_features
+    aug = Augmentation(
+          ^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/microWakeWord-src/microwakeword/audio/augmentation.py", line 102, in __init__
+    background_noise_augment = audiomentations.AddBackgroundNoise(
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jsy/wintermute/wake-train/wintermute-train/.venv/lib/python3.11/site-packages/audiomentations/augmentations/add_background_noise.py", line 77, in __init__
+    assert len(self.sound_file_paths) > 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+feature generation FAILED
+[EXIT 1]

@@ -1,0 +1,54 @@
+# wake-retrain-burst.service — systemd unit that runs the wake-word retrain
+# on a cloud burst pod via burst-train.sh, then validates and installs the
+# returned ONNX through the install gate before touching the live wm-audio model.
+#
+# This supersedes any local wake-retrain job (which risks OOM on this no-swap
+# box; the 2026-06-03 full run peaked 11.2 GB and was killed).
+#
+# Install:
+#   cp wake-retrain-burst.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user start wake-retrain-burst.service   # one-shot manual
+#   # Or add a timer unit to schedule it.
+#
+# The script degrades gracefully if wm-burst is absent (exits non-zero with
+# "wm-burst-missing") — this service will then fail cleanly without harming
+# the live model.
+
+[Unit]
+Description=Wake-word retrain via cloud burst pod (validated before install)
+Documentation=file://%h/wintermute/wake-train/burst-train.sh
+After=network-online.target
+Wants=network-online.target
+# Do not start if the local retrain is already running.
+Conflicts=wake-retrain-realvoice.service
+
+[Service]
+Type=oneshot
+# Extend the timeout to accommodate multi-hour training runs on the remote pod.
+TimeoutStartSec=14400   # 4 hours; adjust down once GPU pod path is stable
+RemainAfterExit=no
+
+ExecStart=%h/wintermute/wake-train/burst-train.sh
+# For smoke-only runs (cheap end-to-end cloud check), override via:
+#   systemctl --user start wake-retrain-burst.service
+# after editing the unit or using systemctl edit for an override.
+
+# Never run as root.
+User=%i
+
+# Keep stdout/stderr in the journal for post-mortem inspection.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wake-retrain-burst
+
+# Environment — override WM_AUDIO_MODEL if the wm-audio model path is
+# non-standard, or POSITIVES_DIR to point at a different recordings dir.
+Environment=WM_AUDIO_MODEL=%h/.local/share/wintermute/wake/wintermute.onnx
+Environment=POSITIVES_DIR=%h/wintermute/wake-train/realvoice
+
+# Do not restart automatically; a failed run might indicate a bad dataset.
+Restart=no
+
+[Install]
+WantedBy=default.target
