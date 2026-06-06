@@ -168,6 +168,14 @@ On-device human-services resource directory — ingests HSDS JSON exports and 21
 |---|---|---|
 | [homeward](https://github.com/j0yen/homeward) | `homeward` | A dozen heterogeneous sources describe the same thing — a dog or cat in a shelter |
 
+## Concord (argument analysis)
+
+Perspective-diverse source gathering and stance-tagged corpus for contested claims.
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [concord](https://github.com/j0yen/concord) | `concord` | Gather perspective-diverse sources for a contested claim, tag by stance, dedup near-identical framings, score credibility, emit a structured Corpus — foundation of the concord workspace. |
+
 ## License
 
 Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
