@@ -37,6 +37,11 @@ MODEL_SRC="$OUT_DIR/wintermute.onnx"  # where train-wintermute.sh writes the mod
 WM_AUDIO_MODEL="${WM_AUDIO_MODEL:-$HOME/.local/share/wintermute/wake/wintermute.onnx}"
 WM_AUDIO_BACKUP="${WM_AUDIO_MODEL%.onnx}.backup.onnx"
 
+# Burst transport command. Overridable (WM_BURST=...) so a mocked provider can be
+# injected for AC3/AC6 verification without real cloud spend. Defaults to the
+# real `wm-burst` on PATH.
+WM_BURST="${WM_BURST:-wm-burst}"
+
 # ── cli parsing ────────────────────────────────────────────────────────────
 # GPU pod is the DEFAULT (PRD Resolved decision, jsy 2026-06-05): training is rare
 # and per-run GPU cost is trivial. --cpu selects the >=32 GB CPU fallback shape.
@@ -81,7 +86,7 @@ fi
 # Degrade gracefully if wm-burst is not yet installed (burst-builder PRD still
 # in_progress). Shape-check and rollback work offline; remote ops require it.
 need_burst() {
-  if ! command -v wm-burst &>/dev/null; then
+  if ! command -v "${WM_BURST%% *}" &>/dev/null; then
     echo "wm-burst-missing: wm-burst is not on PATH." >&2
     echo "  Install it first: PRD-constellation-burst-builder must complete." >&2
     echo "  (burst-train.sh --check-shape and --rollback work without wm-burst)" >&2
@@ -199,7 +204,7 @@ sync_inputs() {
   # wm-burst exec handles the SSH transport; we emit a manifest so the remote
   # side can skip unchanged large assets.
   # TODO: wire --cached-copy once burst-builder exposes content-addressed upload.
-  wm-burst exec -- bash -c "echo 'remote: sync placeholder — implement with rsync+sha256 once burst-builder lands --cached-copy'"
+  $WM_BURST exec -- bash -c "echo 'remote: sync placeholder — implement with rsync+sha256 once burst-builder lands --cached-copy'"
   log "sync: done"
 }
 
@@ -239,7 +244,7 @@ run_remote() {
   log "remote: starting pod via wm-burst pod up (shape=$pod_shape, ~\$$cost_per_hr/h)"
   # wm-burst pod up runs the command, then tears down; exit code is propagated.
   set +e
-  wm-burst pod up \
+  $WM_BURST pod up \
     --estimated-cost-per-hour-usd "$cost_per_hr" \
     --max-duration-secs "$max_secs" \
     -- bash -c "WAKE_POD_SHAPE='$pod_shape' train-wintermute.sh $smoke_flag"
@@ -257,7 +262,7 @@ pull_artifacts() {
   log "pull: retrieving ONNX and receipts from remote → $PULL_DIR"
   # wm-burst exec with a pull command — the actual rsync path depends on
   # burst-builder's remote working directory convention.
-  wm-burst exec -- bash -c "cat /tmp/burst-out/wintermute.onnx" > "$PULL_DIR/wintermute.onnx"
+  $WM_BURST exec -- bash -c "cat /tmp/burst-out/wintermute.onnx" > "$PULL_DIR/wintermute.onnx"
   log "pull: done — artifacts in $PULL_DIR"
 }
 
