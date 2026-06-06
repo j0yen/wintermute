@@ -1,0 +1,6 @@
+# burst pull/output dirs — runtime artifacts (ONNX, receipts), never committed
+burst-out/
+out/
+*.log
+# training venv and model checkpoints
+wintermute-train/.venv/
