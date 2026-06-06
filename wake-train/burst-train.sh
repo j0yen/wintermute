@@ -13,8 +13,9 @@
 #
 # Usage:
 #   ./burst-train.sh --help
-#   ./burst-train.sh --smoke               # cheap end-to-end cloud check
-#   ./burst-train.sh [--gpu]               # full run (GPU pod if --gpu)
+#   ./burst-train.sh --smoke               # cheap end-to-end cloud check (CPU shape)
+#   ./burst-train.sh                       # full run on a GPU pod (the default)
+#   ./burst-train.sh --cpu                 # full run on a CPU fallback shape (>=32 GB)
 #   ./burst-train.sh --install             # gate-check + install after pull
 #   ./burst-train.sh --rollback            # restore prior model backup
 #   ./burst-train.sh --check-shape <onnx>  # shape-gate only, no install
@@ -37,18 +38,21 @@ WM_AUDIO_MODEL="${WM_AUDIO_MODEL:-$HOME/.local/share/wintermute/wake/wintermute.
 WM_AUDIO_BACKUP="${WM_AUDIO_MODEL%.onnx}.backup.onnx"
 
 # ── cli parsing ────────────────────────────────────────────────────────────
-SMOKE=0; GPU=0; DO_INSTALL=0; DO_ROLLBACK=0; CHECK_SHAPE=""; VERIFY_ONLY=""; VERBOSE=0
+# GPU pod is the DEFAULT (PRD Resolved decision, jsy 2026-06-05): training is rare
+# and per-run GPU cost is trivial. --cpu selects the >=32 GB CPU fallback shape.
+SMOKE=0; CPU_FALLBACK=0; DO_INSTALL=0; DO_ROLLBACK=0; CHECK_SHAPE=""; VERIFY_ONLY=""; VERBOSE=0
 POSITIVES_DIR="${POSITIVES_DIR:-$HERE/realvoice}"
 
 usage() {
-  sed -n '2,30p' "$0" | sed 's/^# \?//'
+  sed -n '2,24p' "$0" | sed 's/^# \?//'
   exit 0
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --smoke)        SMOKE=1 ;;
-    --gpu)          GPU=1 ;;
+    --cpu)          CPU_FALLBACK=1 ;;
+    --gpu)          CPU_FALLBACK=0 ;;  # accepted but redundant: GPU is the default
     --install)      DO_INSTALL=1 ;;
     --rollback)     DO_ROLLBACK=1 ;;
     --check-shape)  CHECK_SHAPE="$2"; shift ;;
@@ -200,31 +204,51 @@ sync_inputs() {
 }
 
 # ── remote run ─────────────────────────────────────────────────────────────
+# Pod lifecycle (create → run → teardown) and the budget pre-check are delegated
+# entirely to `wm-burst pod up`, which spins a pod, runs the command, and tears
+# it down (so no training pod is ever left running — AC6). The exit code of the
+# command is propagated by wm-burst, and we propagate it further up.
+#
+# SHAPE SELECTION CAVEAT (recorded blocker): the installed `wm-burst pod up`
+# (v at PATH) exposes only `--estimated-cost-per-hour-usd` and
+# `--max-duration-secs` — it has NO flag to request a GPU/CUDA pod or to size
+# RAM. So the PRD's "GPU pod by default, --cpu fallback ≥32 GB" (AC3) cannot be
+# enforced at the wm-burst transport layer yet. We encode the desired shape in
+# the per-shape estimated cost (GPU pods cost more) and pass WAKE_POD_SHAPE into
+# the remote command so a provider that honours it can pick the right node; the
+# real fix is a wm-burst `pod up --gpu/--ram` surface (PRD-constellation-burst-
+# builder follow-up). Until then GPU-vs-CPU is advisory, not transport-enforced.
 run_remote() {
   local smoke_flag=""
   [[ "$SMOKE" == 1 ]] && smoke_flag="--smoke"
 
-  # Pod sizing: smoke → CPU 32 GB; full CPU path; full GPU path.
-  local pod_ram="32g"
-  local pod_gpu_flag=""
-  if [[ "$GPU" == 1 && "$SMOKE" == 0 ]]; then
-    pod_gpu_flag="--gpu"
-    log "remote: using GPU pod for full run"
+  # Choose shape + a cost estimate that reflects it (GPU default; --cpu fallback;
+  # smoke always uses the cheap CPU shape regardless of --cpu).
+  local pod_shape cost_per_hr max_secs
+  if [[ "$SMOKE" == 1 ]]; then
+    pod_shape="cpu-smoke"; cost_per_hr="0.40"; max_secs="1800"   # 30 min cap
+    log "remote: smoke run on cheap CPU shape ($pod_shape)"
+  elif [[ "$CPU_FALLBACK" == 1 ]]; then
+    pod_shape="cpu-32g"; cost_per_hr="0.60"; max_secs="14400"    # 4 h cap
+    log "remote: full run on CPU fallback shape ($pod_shape, >=32 GB RAM)"
   else
-    log "remote: using CPU pod (≥32 GB RAM) — smoke=$SMOKE gpu=$GPU"
+    pod_shape="gpu-cuda"; cost_per_hr="1.50"; max_secs="3600"    # 1 h cap (GPU is fast)
+    log "remote: full run on GPU pod ($pod_shape) — the default"
   fi
 
-  log "remote: starting pod via wm-burst pod up"
+  log "remote: starting pod via wm-burst pod up (shape=$pod_shape, ~\$$cost_per_hr/h)"
   # wm-burst pod up runs the command, then tears down; exit code is propagated.
+  set +e
   wm-burst pod up \
-    --ram "$pod_ram" \
-    ${pod_gpu_flag:+"$pod_gpu_flag"} \
-    -- bash -c "train-wintermute.sh $smoke_flag"
+    --estimated-cost-per-hour-usd "$cost_per_hr" \
+    --max-duration-secs "$max_secs" \
+    -- bash -c "WAKE_POD_SHAPE='$pod_shape' train-wintermute.sh $smoke_flag"
   local rc=$?
+  set -e
   if [[ $rc -ne 0 ]]; then
-    die "remote: train-wintermute.sh exited $rc — see above for failing stage"
+    die "remote: train-wintermute.sh exited $rc (shape=$pod_shape) — see above for failing stage"
   fi
-  log "remote: pod run completed successfully"
+  log "remote: pod run completed successfully (pod torn down by wm-burst)"
 }
 
 # ── artifact pull ───────────────────────────────────────────────────────────
@@ -277,7 +301,7 @@ if [[ "$DO_INSTALL" == 1 ]]; then
 fi
 
 # ── main flow ───────────────────────────────────────────────────────────────
-log "burst-train: starting (smoke=$SMOKE gpu=$GPU)"
+log "burst-train: starting (smoke=$SMOKE cpu_fallback=$CPU_FALLBACK; GPU is default)"
 
 sync_inputs
 run_remote
