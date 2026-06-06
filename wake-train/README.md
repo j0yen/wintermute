@@ -48,6 +48,31 @@ pw-cli list-modules | grep -i echo
 journalctl --user -u wm-audio -b | grep -i aec3
 ```
 
+## burst-train.sh — cloud wake-word retrain with a validated install gate
+
+The full wake-word retrain OOM-kills on this no-swap laptop (11.2 GB peak) and
+takes hours on CPU. `burst-train.sh` runs `train-wintermute.sh` on an on-demand
+GPU burst pod (via `wm-burst`), pulls back the ONNX + receipts, and **refuses to
+install** unless the model is shaped exactly `[1,186,40] → [1,1]`, is the
+non-streaming variant, and passes the local `verify` stage. A bad run leaves the
+live model untouched.
+
+```sh
+./burst-train.sh --smoke            # cheap end-to-end cloud proof (CPU shape)
+./burst-train.sh                    # full GPU run → gate → atomic install
+./burst-train.sh --check-shape M    # offline shape gate only
+./burst-train.sh --verify-only M    # shape + verify, no swap
+./burst-train.sh --rollback         # restore the prior model in one command
+```
+
+The pinned training env lives in `requirements-pinned.txt` (regenerated only when
+a non-empty `pip freeze` succeeds — never truncated on a pip-less venv). Pod
+lifecycle/cost/teardown is delegated to `wm-burst pod`. The
+`wake-retrain-burst.service` drop-in calls this instead of a local train,
+superseding the OOM-prone local retrain unit. Mocked-provider tests under
+`tests/` prove AC3–AC6 with no cloud spend:
+`tests/burst-pod.sh`, `tests/install-gate.sh`, `tests/rollback.sh`.
+
 ## wm-models
 
 ```sh

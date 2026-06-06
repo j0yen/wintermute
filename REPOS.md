@@ -40,6 +40,7 @@ clones, builds, and wires up everything on a fresh machine.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [anchor](~/wintermute/anchor) | `anchor` | Declared watch-root manifest and pure reconcile plan: `anchor plan` diffs a versioned `roots.toml` against the live watchman state and prints which roots are watched/missing/stale/undeclared; exits non-zero if any declared root is missing. Foundation for anchor-probe/anchor-reconcile/anchor-boot. |
 | [bpolicy](https://github.com/j0yen/bpolicy) | `bpolicy` | eBPF-LSM write enforcer with versioned home: Rust control-plane CLI replacing the original Python script; `load`/`unload`/`enforce`/`release`/`status`/`log` subcommands with byte-identical JSON output; BPF source vendored in-repo; back-compat anchor for the warden fleet. |
 | [binstale](https://github.com/j0yen/binstale) | `binstale` | Running-binary staleness detector: classifies each process's executing binary as `fresh \| deleted-exe \| inode-drift \| prov-stale` using `/proc` kernel signals and provfs xattrs. Detection only — never restarts anything. |
 | [ctrace-orphan-reap](https://github.com/j0yen/ctrace-orphan-reap) | `ctrace-orphan-reap` | Reconcile orphaned ctrace tracer state against live PIDs: classifies into `healthy`/`orphaned-tracer`/`stale-marker`/`no-tracer`; with `--apply` stops the orphan and renders its log. Read-only by default. |
@@ -151,6 +152,7 @@ Multi-machine expansion of the wintermute ecosystem — fleet provisioning, mesh
 | [constellation](~/wintermute/constellation) | — | Fleet provisioning repo: Ansible playbooks (base/desktop/voice roles), greetd autologin + i3 graphical-session bridge, host_vars per-node config, isobuild archiso profile, and localrepo scripts — one ISO + one playbook run = an identical wintermute node. |
 | [agorabus-nats-bridge](https://github.com/j0yen/agorabus-nats-bridge) | `wm-busbridge` | agorabus ↔ NATS bridge daemon: mirrors allowlisted `wm.fleet.*` events between the local agorabus UDS and a NATS leaf node, loop-guarded and bandwidth-selective — the keystone that makes the local wintermute bus fleet-wide. |
 | [constellation-burst-builder](https://github.com/j0yen/constellation-burst-builder) | `wm-burst` | Mesh-free cloud-burst CLI: points `cargo` at a cheap dedicated box + shared sccache so heavy compiles stop pinning local cores; hard-fails on toolchain drift; enforces monthly pod budget cap. |
+| [wake-train](~/wintermute/wake-train) | `burst-train.sh` | Wake-word retrain offloaded to an on-demand GPU burst pod (via `wm-burst`), then gated: installs the returned ONNX into wm-audio only if it is exactly `[1,186,40]→[1,1]`, non-streaming, and passes the local `verify` stage — atomic swap with one-command `--rollback`. Replaces the OOM-prone local retrain. |
 
 ## Relay (human services)
 
