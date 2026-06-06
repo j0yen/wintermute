@@ -46,6 +46,7 @@ clones, builds, and wires up everything on a fresh machine.
 | [ctrace-scribe](https://github.com/j0yen/ctrace-scribe) | `ctrace-scribe` | Cross-session daily trace digest: reads ctrace JSON logs and emits per-tool/per-session summaries; `rollup` subcommand aggregates across sessions for self-review. |
 | [docket](https://github.com/j0yen/docket) | `docket` | SQLite-backed CLI ledger for standing findings — deduplicates recurring self-review discoveries by key, tracks first/last-seen timestamps and consecutive-run streak, exposes `report`/`list`/`show`/`resolve` commands. |
 | [rollout](https://github.com/j0yen/rollout) | `rollout` | Safe rolling restart for the live daemon fleet: `rollout install <bin> --dest <path>` atomically installs a freshly-built binary and restarts the owning systemd-user unit (agorabus-reload path or systemctl); `plan`/`apply` subcommands for bulk stale-binary remediation driven by binstale JSON. Closes the install-without-restart gap for recalld, wmd, wm-audio, and the voice fleet. |
+| [quicken](https://github.com/j0yen/quicken) | `quicken` | Wintermute kernel primitive liveness checker: `quicken probe` classifies memlog/agentns/warden/provfs as `Live \| LiveDegraded \| InstalledNotActivated \| StagedNotInstalled \| Inert \| Unknown` with structured evidence. Sibling of `binstale` (stale-but-running axis) for the never-activated axis. `--json` output usable as a pipeline gate. |
 | [wm-hardware-drift](https://github.com/j0yen/wm-hardware-drift) | `wm-hardware-drift` | Sweep CLI that runs both mock and `--features=real-hardware` cargo test sets, diffs per-test outcomes, and emits a `hardware-drift.json` receipt; `/self-review` surfaces any `drift_count > 0` as a finding. |
 
 ## Memory layer
@@ -149,13 +150,22 @@ Multi-machine expansion of the wintermute ecosystem — fleet provisioning, mesh
 |------|--------|-------------|
 | [constellation](~/wintermute/constellation) | — | Fleet provisioning repo: Ansible playbooks (base/desktop/voice roles), greetd autologin + i3 graphical-session bridge, host_vars per-node config, isobuild archiso profile, and localrepo scripts — one ISO + one playbook run = an identical wintermute node. |
 | [agorabus-nats-bridge](https://github.com/j0yen/agorabus-nats-bridge) | `wm-busbridge` | agorabus ↔ NATS bridge daemon: mirrors allowlisted `wm.fleet.*` events between the local agorabus UDS and a NATS leaf node, loop-guarded and bandwidth-selective — the keystone that makes the local wintermute bus fleet-wide. |
+| [constellation-burst-builder](https://github.com/j0yen/constellation-burst-builder) | `wm-burst` | Mesh-free cloud-burst CLI: points `cargo` at a cheap dedicated box + shared sccache so heavy compiles stop pinning local cores; hard-fails on toolchain drift; enforces monthly pod budget cap. |
 
-## License
+## Relay (human services)
 
-Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
+On-device human-services resource directory — ingests HSDS JSON exports and 211-style CSVs, normalises into a local SQLite store, answers proximity + eligibility queries offline.
 
-Homeward (lost-pet)
+| Repo | Binary | What it does |
+|---|---|---|
+| [relay](~/wintermute/relay) | `relay` | Foundation workspace: normalised `Resource` schema, HSDS-JSON + CSV ingestors, dedup, SQLite store, proximity+eligibility query layer; `relay directory import/query/stats`. |
+
+## Homeward (lost-pet)
 
 | Repo | Binary | What it does |
 |---|---|---|
 | [homeward](https://github.com/j0yen/homeward) | `homeward` | A dozen heterogeneous sources describe the same thing — a dog or cat in a shelter |
+
+## License
+
+Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
