@@ -194,10 +194,21 @@ sync_inputs() {
   [[ -f "$libritts_pt" ]] || log "WARN: libritts .pt not found at $libritts_pt — remote may fail"
 
   # Generate/refresh the pinned env spec from the local venv if it exists.
+  # Write atomically via a temp file: only replace the committed spec when
+  # `pip freeze` produced NON-EMPTY output. A bare `> "$env_spec"` truncates the
+  # file BEFORE pip runs, so a failing/empty freeze (e.g. venv unreachable under a
+  # sandbox) would silently blow away the good 118-line spec and leave a 0-byte
+  # file — the exact churn that stalled this PRD across multiple ticks.
   if [[ -x "$VENV_PY" ]]; then
-    "$VENV_PY" -m pip freeze > "$env_spec" 2>/dev/null \
-      && log "sync: refreshed $env_spec from local venv" \
-      || log "WARN: pip freeze failed — using existing $env_spec if present"
+    local tmp_spec
+    tmp_spec="$(mktemp "${env_spec}.XXXXXX")"
+    if "$VENV_PY" -m pip freeze > "$tmp_spec" 2>/dev/null && [[ -s "$tmp_spec" ]]; then
+      { echo "# Generated from local training venv on $(date -u +%FT%TZ)"; cat "$tmp_spec"; } > "$env_spec"
+      log "sync: refreshed $env_spec from local venv"
+    else
+      log "WARN: pip freeze failed/empty — keeping existing $env_spec"
+    fi
+    rm -f "$tmp_spec"
   fi
 
   log "sync: uploading positives + models + env spec via wm-burst exec"
