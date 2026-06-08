@@ -179,3 +179,9 @@ Perspective-diverse source gathering and stance-tagged corpus for contested clai
 ## License
 
 Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
+
+## Recently shipped (auto)
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [relay](https://github.com/j0yen/relay) | `relay` | A helper doesn't think in taxonomy codes — they hear "she's couch-surfing with |
