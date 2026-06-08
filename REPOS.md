@@ -175,6 +175,7 @@ Perspective-diverse source gathering and stance-tagged corpus for contested clai
 | Repo | Binary | What it does |
 |---|---|---|
 | [concord](https://github.com/j0yen/concord) | `concord` | Gather perspective-diverse sources for a contested claim, tag by stance, dedup near-identical framings, score credibility, emit a structured Corpus — foundation of the concord workspace. |
+| [ousia-forge](https://github.com/j0yen/ousia-forge) | `ousia-forge` | Build the World Ontology (OWL 2 DL / RDF/XML) from a declarative TOML spec; subcommands: build, check, stats. Gate tool for the full ousia toolchain. |
 
 ## License
 
