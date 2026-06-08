@@ -177,6 +177,7 @@ Perspective-diverse source gathering and stance-tagged corpus for contested clai
 | [concord](https://github.com/j0yen/concord) | `concord` | Gather perspective-diverse sources for a contested claim, tag by stance, dedup near-identical framings, score credibility, emit a structured Corpus — foundation of the concord workspace. |
 | [ousia-forge](https://github.com/j0yen/ousia-forge) | `ousia-forge` | Build the World Ontology (OWL 2 DL / RDF/XML) from a declarative TOML spec; subcommands: build, check, stats. Gate tool for the full ousia toolchain. |
 | [recourse](https://github.com/j0yen/recourse) | `recourse` | Durable, PII-free verdict receipt layer for ousia-guard: `receipt emit` hashes the action (blake3, never raw), appends NDJSON receipt; `show`/`ls` for audit and pipeline integration. First crate in the verdict-recourse chain. |
+| [tribunal](https://github.com/j0yen/tribunal) | `tribunal` | Independent held-out ethics evaluation corpus for ousia-guard: 64 cases across all 10 Federation Model tenets, sourced from external philosophy (Kant, Rawls, capabilities approach) — never from ousia axioms. `tribunal corpus validate` enforces schema conformance and provenance independence. |
 
 ## License
 
