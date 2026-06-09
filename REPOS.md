@@ -178,9 +178,18 @@ Perspective-diverse source gathering and stance-tagged corpus for contested clai
 |---|---|---|
 | [concord](https://github.com/j0yen/concord) | `concord` | Gather perspective-diverse sources for a contested claim, tag by stance, dedup near-identical framings, score credibility, emit a structured Corpus — foundation of the concord workspace. |
 | [ousia-forge](https://github.com/j0yen/ousia-forge) | `ousia-forge` | Build the World Ontology (OWL 2 DL / RDF/XML) from a declarative TOML spec; subcommands: build, check, stats. Gate tool for the full ousia toolchain. |
+| [ousia-sparql](https://github.com/j0yen/ousia-sparql) | `ousia-sparql` | SPARQL 1.1 query layer over the materialized World Ontology: load OWL + ABox into an oxigraph store, materialize entailments via ousia-reason, and query with `load`/`query`/`ask`/`serve`; ships a canned pack (dignity-bearers, rights-violations, unaccountable-authority, just-societies, etc.) that turns the ethical structure into runnable demo queries. |
 | [recourse](https://github.com/j0yen/recourse) | `recourse` | Durable, PII-free verdict receipt layer for ousia-guard: `receipt emit` hashes the action (blake3, never raw), appends NDJSON receipt; `show`/`ls` for audit and pipeline integration. First crate in the verdict-recourse chain. |
 | [tribunal](https://github.com/j0yen/tribunal) | `tribunal` | Independent held-out ethics evaluation corpus for ousia-guard: 64 cases across all 10 Federation Model tenets, sourced from external philosophy (Kant, Rawls, capabilities approach) — never from ousia axioms. `tribunal corpus validate` enforces schema conformance and provenance independence. |
 | [lattice-registry](https://github.com/j0yen/lattice-registry) | `lattice-registry` | Local catalog of BFO-grounded ontologies for the ethical lattice: fetch, verify BFO grounding, and index ontologies from OBO Foundry and other registries. `sync`/`add`/`list`/`show`/`path` with etag-based caching under `~/.cache/lattice/registry/`. |
+
+## Warrant suite
+
+Close-claim corpus reader and assertion runner — parses, classifies, and re-verifies PRD close notes so false "outcome achieved by a different mechanism" closes are caught before the symptom recurs from scratch.
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [warrant](https://github.com/j0yen/warrant) | `warrant` | Root workspace: close-claim domain model (`CloseClaim`, `ClaimKind`, `Warrant`, `AssertionSpec`, `WarrantVerdict`), pure `classify()` function (zero IO), `CloseSource` trait + `FakeSource`; `warrant list [--format json]` and `warrant list-sources` CLI. Foundation for warrant-audit and warrant-docket. |
 
 ## License
 
