@@ -189,4 +189,5 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [coda](https://github.com/j0yen/coda) | `coda` | Summary-debt model and sweep planner for ctrace session logs; `coda plan` classifies every session log (Active/Fresh/Orphaned/Settled) and prints a debt table; exits non-zero when render work exists. |
 | [relay](https://github.com/j0yen/relay) | `relay` | A helper doesn't think in taxonomy codes — they hear "she's couch-surfing with |
