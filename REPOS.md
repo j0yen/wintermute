@@ -200,5 +200,6 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [bon-mot](https://github.com/j0yen/bon-mot) | (library) | Shared wit core for bon-mot CLIs: TOML lexicon, `{slot}`/`{a\|b\|c}` grammar runtime, Unicode counters, seedable RNG, optional Anthropic client (`lavish` feature). |
 | [coda](https://github.com/j0yen/coda) | `coda` | Summary-debt model and sweep planner for ctrace session logs; `coda plan` classifies every session log (Active/Fresh/Orphaned/Settled) and prints a debt table; exits non-zero when render work exists. |
 | [relay](https://github.com/j0yen/relay) | `relay` | A helper doesn't think in taxonomy codes — they hear "she's couch-surfing with |
