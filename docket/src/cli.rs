@@ -5,6 +5,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::db;
+use crate::digest;
 use crate::error::Result;
 
 /// A structured ledger for standing findings.
@@ -63,20 +64,31 @@ pub(crate) enum Command {
         /// Severity level (default: warn).
         #[arg(long, default_value = "warn")]
         severity: String,
-        /// Optional evidence reference (raw string, stored for future docket-evidence).
+        /// Typed evidence reference(s) — repeatable.
+        ///
+        /// Format: `<kind>:<ref>`.  Known kinds: `recall`, `journal`, `pid`,
+        /// `provfs`, `commit`, `path`.  Unknown prefixes stored as `raw`.
+        /// Malformed refs are never rejected — they are stored as-given.
+        #[arg(long, action = clap::ArgAction::Append)]
+        evidence: Vec<String>,
+        /// Escalation threshold: escalate after this many consecutive runs.
+        /// Overrides `DOCKET_ESCALATE_THRESHOLD` env var (default 3).
         #[arg(long)]
-        evidence: Option<String>,
+        escalate_threshold: Option<i64>,
     },
     /// List findings.
     List {
         /// Show only open findings (default).
-        #[arg(long, conflicts_with_all = ["resolved", "all"])]
+        #[arg(long, conflicts_with_all = ["resolved", "escalated", "all"])]
         open: bool,
         /// Show only resolved findings.
-        #[arg(long, conflicts_with_all = ["open", "all"])]
+        #[arg(long, conflicts_with_all = ["open", "escalated", "all"])]
         resolved: bool,
+        /// Show only escalated findings.
+        #[arg(long, conflicts_with_all = ["open", "resolved", "all"])]
+        escalated: bool,
         /// Show all findings.
-        #[arg(long, conflicts_with_all = ["open", "resolved"])]
+        #[arg(long, conflicts_with_all = ["open", "resolved", "escalated"])]
         all: bool,
         /// Output format.
         #[arg(long, value_enum, default_value = "text")]
@@ -101,6 +113,48 @@ pub(crate) enum Command {
         #[arg(long)]
         reason: Option<String>,
     },
+    /// Digest: compact rollup of open/escalated findings for banners and health checks.
+    ///
+    /// Text output (default): ≤3-line banner safe to inline in `SessionStart`.
+    /// JSON output: `wm.health.*`-compatible envelope (matches companion-degrade shape).
+    Digest {
+        /// Output format.
+        #[arg(long, value_enum, default_value = "text")]
+        format: Format,
+        /// Minimum severity to include (default: include all).
+        #[arg(long, value_enum)]
+        severity: Option<SeverityFilter>,
+    },
+    /// Sweep: auto-resolve stale open/escalated findings not seen in recent runs.
+    ///
+    /// Marks every open/escalated finding whose `last_run` differs from <run>
+    /// and whose absence spans >= `stale_after` runs as resolved(stale).
+    /// Also resets `consecutive_runs` to 0 for findings with a gap (< `stale_after`).
+    Sweep {
+        /// Current run identifier (will be recorded in the runs ledger).
+        #[arg(long)]
+        run: String,
+        /// Number of elapsed runs before a finding is considered stale.
+        /// Overrides `DOCKET_STALE_AFTER` env var (default 3).
+        #[arg(long)]
+        stale_after: Option<i64>,
+    },
+}
+
+/// Resolve `DOCKET_ESCALATE_THRESHOLD` env var, defaulting to 3.
+fn escalate_threshold_default() -> i64 {
+    std::env::var("DOCKET_ESCALATE_THRESHOLD")
+        .ok()
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(3)
+}
+
+/// Resolve `DOCKET_STALE_AFTER` env var, defaulting to 3.
+fn stale_after_default() -> i64 {
+    std::env::var("DOCKET_STALE_AFTER")
+        .ok()
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(3)
 }
 
 /// Run the CLI command.
@@ -108,6 +162,7 @@ pub(crate) enum Command {
 /// # Errors
 ///
 /// Returns an error if the database operation fails or a key is not found.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Command::Report {
@@ -116,19 +171,30 @@ pub(crate) fn run(cli: Cli) -> Result<()> {
             title,
             severity,
             evidence,
+            escalate_threshold,
         } => {
+            let threshold = escalate_threshold.unwrap_or_else(escalate_threshold_default);
             let conn = db::open()?;
-            db::report(&conn, &run, &key, &title, &severity, evidence.as_deref())?;
+            // Pass None for the legacy single-line evidence column; typed refs go
+            // into the `evidence` table via insert_evidence.
+            db::report(&conn, &run, &key, &title, &severity, None, threshold)?;
+            // Append typed evidence refs (M2) — lenient, never fails for bad syntax.
+            if !evidence.is_empty() {
+                db::insert_evidence(&conn, &key, &run, &evidence)?;
+            }
         }
         Command::List {
             open: _open,
             resolved,
+            escalated,
             all,
             format,
             severity,
         } => {
             let status_filter = if resolved {
                 "resolved"
+            } else if escalated {
+                "escalated"
             } else if all {
                 "all"
             } else {
@@ -164,6 +230,29 @@ pub(crate) fn run(cli: Cli) -> Result<()> {
         Command::Resolve { key, reason } => {
             let conn = db::open()?;
             db::resolve(&conn, &key, reason.as_deref())?;
+        }
+        Command::Digest { format, severity } => {
+            let min_sev = severity.as_ref().map(SeverityFilter::rank);
+            let conn = db::open()?;
+            let findings = db::list_active(&conn, min_sev)?;
+            let env = digest::compute(&findings);
+            match format {
+                Format::Json => {
+                    println!("{}", serde_json::to_string_pretty(&env)?);
+                }
+                Format::Text => {
+                    println!("{}", digest::format_text(&env));
+                }
+            }
+        }
+        Command::Sweep { run, stale_after } => {
+            let stale = stale_after.unwrap_or_else(stale_after_default);
+            let conn = db::open()?;
+            let result = db::sweep(&conn, &run, stale)?;
+            eprintln!(
+                "sweep complete: resolved={} streak_reset={}",
+                result.resolved, result.streak_reset
+            );
         }
     }
     Ok(())

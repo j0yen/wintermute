@@ -1,4 +1,5 @@
 # Claude on wintermute — self file
+<!-- changelog: 2026-06-06 (build): extended relay v0.4→0.5, concord v0.3→0.4, anchor v0.2→0.3, coda →v0.2 (local) from PRD-relay-match/concord-deescalate/anchor-boot/coda-audit -->
 
 This file is loaded into every Claude Code session on this laptop. It is
 the agent's running understanding of how it aims to work here. Both the
