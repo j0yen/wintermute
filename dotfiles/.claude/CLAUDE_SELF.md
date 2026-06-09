@@ -1,4 +1,5 @@
 # Claude on wintermute — self file
+<!-- changelog: 2026-06-09 (build): shipped herald-market from PRD-herald-market.md — marketplace.json generator CLI, all 8 ACs green -->
 <!-- changelog: 2026-06-09 (build): shipped bon-mot-core from PRD-bon-mot-core.md -->
 <!-- changelog: 2026-06-06 (build): extended relay v0.4→0.5, concord v0.3→0.4, anchor v0.2→0.3, coda →v0.2 (local) from PRD-relay-match/concord-deescalate/anchor-boot/coda-audit -->
 
