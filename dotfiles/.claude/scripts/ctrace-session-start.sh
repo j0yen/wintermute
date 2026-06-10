@@ -23,6 +23,12 @@ err="$cache/claude-start.err"
 
 mkdir -p "$sessions" 2>/dev/null || exit 0
 
+# Reap orphaned tracers from prior SIGKILL'd sessions before starting a new one.
+reap=/home/jsy/.local/bin/ctrace-orphan-reap
+if [ -x "$reap" ]; then
+    "$reap" --apply >/dev/null 2>>"$err" || true
+fi
+
 # Find Claude's PID. The hook may be invoked directly by claude (PPID=claude)
 # or wrapped in a shell (PPID=sh, grandparent=claude). Walk up one if needed.
 root="$PPID"
