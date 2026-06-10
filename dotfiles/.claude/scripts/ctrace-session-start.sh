@@ -29,6 +29,13 @@ if [ -x "$reap" ]; then
     "$reap" --apply >/dev/null 2>>"$err" || true
 fi
 
+# Sweep any un-summarized session logs left by prior SIGKILLed sessions.
+scribe=/home/jsy/.local/bin/scribe
+if [ -x "$scribe" ]; then
+    "$scribe" backfill /home/jsy/.cache/ctrace/sessions \
+        >/dev/null 2>>"$err" || true
+fi
+
 # Find Claude's PID. The hook may be invoked directly by claude (PPID=claude)
 # or wrapped in a shell (PPID=sh, grandparent=claude). Walk up one if needed.
 root="$PPID"
