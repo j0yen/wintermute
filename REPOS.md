@@ -207,6 +207,10 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [assay](https://github.com/j0yen/assay) | `assay` | The booted `7.0.10-arch1-5-wintermute` kernel reports `agent_session` as 32 |
+
+| Repo | Binary | What it does |
+|---|---|---|
 | [herald-market](https://github.com/j0yen/herald-market) | `herald-market` | Generates and maintains a `.claude-plugin/marketplace.json` catalog for j0yen plugins — `init`/`add`/`sync`/`lint` subcommands, pinned `git-subdir` shas, matches official Claude Code marketplace format. |
 | [bon-mot](https://github.com/j0yen/bon-mot) | (library) | Shared wit core for bon-mot CLIs: TOML lexicon, `{slot}`/`{a\|b\|c}` grammar runtime, Unicode counters, seedable RNG, optional Anthropic client (`lavish` feature). |
 | [coda](https://github.com/j0yen/coda) | `coda` | Summary-debt model and sweep planner for ctrace session logs; `coda plan` classifies every session log (Active/Fresh/Orphaned/Settled) and prints a debt table; exits non-zero when render work exists. |
