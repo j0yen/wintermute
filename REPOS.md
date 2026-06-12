@@ -207,6 +207,10 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [ousia-guard](https://github.com/j0yen/ousia-guard) | `ousia-guard` | This is the keystone of the seed — "making ethical AI possible." `ousia-guard` |
+
+| Repo | Binary | What it does |
+|---|---|---|
 | [herald-pack](https://github.com/j0yen/herald-pack) | `herald-pack` | On this laptop, a "skill" is a `SKILL.md` directory symlinked into |
 
 | Repo | Binary | What it does |
