@@ -207,6 +207,10 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [herald-pack](https://github.com/j0yen/herald-pack) | `herald-pack` | On this laptop, a "skill" is a `SKILL.md` directory symlinked into |
+
+| Repo | Binary | What it does |
+|---|---|---|
 | [assay](https://github.com/j0yen/assay) | `assay` | The booted `7.0.10-arch1-5-wintermute` kernel reports `agent_session` as 32 |
 
 | Repo | Binary | What it does |
