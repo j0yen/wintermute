@@ -26,16 +26,14 @@ Conflicts=wake-retrain-realvoice.service
 [Service]
 Type=oneshot
 # Extend the timeout to accommodate multi-hour training runs on the remote pod.
-TimeoutStartSec=14400   # 4 hours; adjust down once GPU pod path is stable
+# Extend the timeout to accommodate multi-hour training runs on the remote pod.
+# 4 hours; adjust down once GPU pod path is stable.
+TimeoutStartSec=14400
 RemainAfterExit=no
 
 ExecStart=%h/wintermute/wake-train/burst-train.sh
-# For smoke-only runs (cheap end-to-end cloud check), override via:
-#   systemctl --user start wake-retrain-burst.service
-# after editing the unit or using systemctl edit for an override.
-
-# Never run as root.
-User=%i
+# For smoke-only runs (cheap end-to-end cloud check), use systemctl edit
+# to add: ExecStart=%h/wintermute/wake-train/burst-train.sh --smoke
 
 # Keep stdout/stderr in the journal for post-mortem inspection.
 StandardOutput=journal
