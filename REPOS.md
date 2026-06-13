@@ -45,6 +45,7 @@ clones, builds, and wires up everything on a fresh machine.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [adopt](https://github.com/j0yen/adopt) | `adopt` | Detect shipped wintermute artifacts that never entered the live system: `adopt scan` walks every wintermute repo, checks PATH/~/.local/bin/~/.cargo/bin, and emits per-artifact verdicts (`not-installed`/`installed-stale`/`installed-current`) with copy-pasteable `fix_cmd`. Fills the gap binstale can't cover (binaries never installed ≠ running stale). `--format json` for pipeline use. |
 | [anchor](~/wintermute/anchor) | `anchor` | Declared watch-root manifest and pure reconcile plan: `anchor plan` diffs a versioned `roots.toml` against the live watchman state and prints which roots are watched/missing/stale/undeclared; exits non-zero if any declared root is missing. Foundation for anchor-probe/anchor-reconcile/anchor-boot. |
 | [bpolicy](https://github.com/j0yen/bpolicy) | `bpolicy` | eBPF-LSM write enforcer with versioned home: Rust control-plane CLI replacing the original Python script; `load`/`unload`/`enforce`/`release`/`status`/`log` subcommands with byte-identical JSON output; BPF source vendored in-repo; back-compat anchor for the warden fleet. |
 | [binstale](https://github.com/j0yen/binstale) | `binstale` | Running-binary staleness detector: classifies each process's executing binary as `fresh \| deleted-exe \| inode-drift \| prov-stale` using `/proc` kernel signals and provfs xattrs. Detection only — never restarts anything. |
@@ -206,7 +207,7 @@ Semantic audit trail for autonomous agent actions — an append-only human-reada
 
 | Repo | Binary | What it does |
 |---|---|---|
-| [answerable](https://github.com/joeyen-atscale/answerable) | `answerable` | Append-only JSONL ledger of high-consequence autonomous actions (`record`/`log`/`stats`). Library API (`Action`, `ActionKind`, `Ledger::append/read/since`) for sibling PRDs. SIGPIPE-safe; O_APPEND atomic writes. |
+| [answerable](https://github.com/j0yen/answerable) | `answerable` | Append-only JSONL ledger of high-consequence autonomous actions (`record`/`log`/`stats`). Library API (`Action`, `ActionKind`, `Ledger::append/read/since`) for sibling PRDs. SIGPIPE-safe; O_APPEND atomic writes. |
 
 ## License
 
@@ -236,3 +237,7 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 | [bon-mot](https://github.com/j0yen/bon-mot) | (library) | Shared wit core for bon-mot CLIs: TOML lexicon, `{slot}`/`{a\|b\|c}` grammar runtime, Unicode counters, seedable RNG, optional Anthropic client (`lavish` feature). |
 | [coda](https://github.com/j0yen/coda) | `coda` | Summary-debt model and sweep planner for ctrace session logs; `coda plan` classifies every session log (Active/Fresh/Orphaned/Settled) and prints a debt table; exits non-zero when render work exists. |
 | [relay](https://github.com/j0yen/relay) | `relay` | A helper doesn't think in taxonomy codes — they hear "she's couch-surfing with |
+
+| Repo | Slug | What it does |
+|---|---|---|
+| [persona-work](https://github.com/j0yen/persona-work) | `persona-work` | Work-machine Claude Code identity (`CLAUDE_WORK.md`) for Joe's AtScale laptop — install/validate scripts, no voice/agorabus/auto-publish. |
