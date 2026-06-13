@@ -200,6 +200,14 @@ Close-claim corpus reader and assertion runner — parses, classifies, and re-ve
 |---|---|---|
 | [warrant](https://github.com/j0yen/warrant) | `warrant` | Root workspace: close-claim domain model (`CloseClaim`, `ClaimKind`, `Warrant`, `AssertionSpec`, `WarrantVerdict`), pure `classify()` function (zero IO), `CloseSource` trait + `FakeSource`; `warrant list [--format json]` and `warrant list-sources` CLI. Foundation for warrant-audit and warrant-docket. |
 
+## Answerable suite
+
+Semantic audit trail for autonomous agent actions — an append-only human-readable ledger and guard layer.
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [answerable](https://github.com/joeyen-atscale/answerable) | `answerable` | Append-only JSONL ledger of high-consequence autonomous actions (`record`/`log`/`stats`). Library API (`Action`, `ActionKind`, `Ledger::append/read/since`) for sibling PRDs. SIGPIPE-safe; O_APPEND atomic writes. |
+
 ## License
 
 Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
