@@ -55,7 +55,10 @@ clones, builds, and wires up everything on a fresh machine.
 | [keel](https://github.com/j0yen/keel) | `keel` | Brain tier-ladder health probe: `keel status` reports the effective tier ceiling and how long the brain has been floored; `keel beacon` emits `wm.keel.degraded`/`wm.keel.refloat` on ceiling changes (edge-triggered, not a heartbeat) so the operator reacts live instead of at the next self-review. |
 | [rollout](https://github.com/j0yen/rollout) | `rollout` | Safe rolling restart for the live daemon fleet: `rollout install <bin> --dest <path>` atomically installs a freshly-built binary and restarts the owning systemd-user unit (agorabus-reload path or systemctl); `plan`/`apply` subcommands for bulk stale-binary remediation driven by binstale JSON. Closes the install-without-restart gap for recalld, wmd, wm-audio, and the voice fleet. |
 | [quicken](https://github.com/j0yen/quicken) | `quicken` | Wintermute kernel primitive liveness checker: `quicken probe` classifies memlog/agentns/warden/provfs as `Live \| LiveDegraded \| InstalledNotActivated \| StagedNotInstalled \| Inert \| Unknown` with structured evidence. Sibling of `binstale` (stale-but-running axis) for the never-activated axis. `--json` output usable as a pipeline gate. |
+| [plumb](~/wintermute/plumb) | `plumb` | Probe-oracle calibration tool: `plumb check <probe-id>` pairs each self-review probe with an independent ground-truth oracle, reports `agree\|disagree\|error`. Catches lying instruments before they park wrong findings on the docket. Seed probes: `memlog-active` (reproduces the live SKILL.md multiline-capture bug), `ctrace-backfill-wired`, `adopt-report-exists`. |
 | [wm-hardware-drift](https://github.com/j0yen/wm-hardware-drift) | `wm-hardware-drift` | Sweep CLI that runs both mock and `--features=real-hardware` cargo test sets, diffs per-test outcomes, and emits a `hardware-drift.json` receipt; `/self-review` surfaces any `drift_count > 0` as a finding. |
+| [changeover](https://github.com/j0yen/changeover) | `changeover` | Measure the agorabus restart deafness window: `changeover probe --daemon <name>` triggers a `systemctl --user restart`, publishes a heartbeat stream, and reports `deafness_ms` + `events_missed_window`. `--dry-run` gives a synthetic offline report; `--format json` for pipeline use. |
+| [tokenmeter](https://github.com/j0yen/tokenmeter) | `tokenmeter` | Per-tool token cost estimator for Claude Code sessions: parses session JSONL transcripts and estimates input/output token cost by tool name. `summary`/`session <id>`/`top --n N` subcommands; `--json` output; configurable pricing via `--input-price`/`--output-price`. |
 
 ## Memory layer
 
@@ -217,6 +220,7 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [inoculate](https://github.com/j0yen/inoculate) | `inoculate` | Distills CLAUDE_SELF.md Values+Boundaries + redline.toml into a versioned, blake3-hashable ethics strain; `strain`, `hash`, `version` subcommands; library crate `inoculate-core` for sibling crates. |
 | [conning-tower](https://github.com/j0yen/conning-tower) | `conning-tower` | `vicious-circle` crowns a `bon mot` each round and writes every `Verdict` to an |
 
 | Repo | Binary | What it does |
@@ -241,3 +245,6 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 | Repo | Slug | What it does |
 |---|---|---|
 | [persona-work](https://github.com/j0yen/persona-work) | `persona-work` | Work-machine Claude Code identity (`CLAUDE_WORK.md`) for Joe's AtScale laptop — install/validate scripts, no voice/agorabus/auto-publish. |
+| [persona-deploy-doctor](https://github.com/j0yen/persona-deploy-doctor) | — | Persona drift health checker for the Jocelyn elder persona: asserts `forbidden_terms` non-empty, `redline` active, and `self_name` matches expected warm name; exits 0/1/2; `--json` output; daily systemd timer publishes `wm.persona.drift` bus event on drift. |
+| [persona-deploy-jocelyn](https://github.com/j0yen/persona-deploy-jocelyn) | — | Idempotent shell installer for the Jocelyn elder persona: applies the `jocelyn` profile to `brain.toml`, sets `self_name`/`wake_word`/redline, snapshots for rollback, restarts wm-brain. |
+| [persona-redline-eval](https://github.com/j0yen/persona-redline-eval) | — | Held-out eval harness: 45 naturalistic technophobe-trigger prompts (independent of redline.rs test strings) drive the live brain pipeline and report raw vs. post-enforce forbidden-term leak rates. |
