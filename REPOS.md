@@ -283,6 +283,7 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [hold-anchor](https://github.com/j0yen/hold-anchor) | `hold-anchor` | Establish one shared CARGO_TARGET_DIR for the wintermute fleet: writes `~/wintermute/.cargo/config.toml` with `build.target-dir`, verifies cargo picks it up, supports `apply`/`status`/`unset`; idempotent, conflict-safe, TOML-key-preserving. |
 | [inoculate](https://github.com/j0yen/inoculate) | `inoculate` | Distills CLAUDE_SELF.md Values+Boundaries + redline.toml into a versioned, blake3-hashable ethics strain; `strain`, `hash`, `version` subcommands; library crate `inoculate-core` for sibling crates. |
 | [conning-tower](https://github.com/j0yen/conning-tower) | `conning-tower` | `vicious-circle` crowns a `bon mot` each round and writes every `Verdict` to an |
 
