@@ -285,7 +285,7 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 
 | Repo | Binary | What it does |
 |---|---|---|
-| [roundtable](https://github.com/joeyen-atscale/roundtable) | `roundtable` | Daily session orchestrator: chains the-lunch → vicious-circle → conning-tower with XDG-compliant ledger, dedup guard, and dry-run mode. `roundtable session [--date YYYY-MM-DD] [--dry-run] [--bin-dir <dir>]`. |
+| [roundtable](https://github.com/j0yen/roundtable) v0.4.0 | `roundtable` | Daily session orchestrator: chains the-lunch → vicious-circle → conning-tower with XDG-compliant ledger, dedup guard, and dry-run mode. v0.4.0 adds `bind` (new-yorker issue+cover), `games` (debate transcripts vs Wordsmith/Pedant/Contrarian), `weekly` (ISO-week digest in text/markdown/json), and `--with-games` on session. |
 
 ## MQO template management
 
