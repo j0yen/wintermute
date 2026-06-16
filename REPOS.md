@@ -189,7 +189,7 @@ Read-only measurement and safe-reclaim fleet for disk weight management on a lap
 | Repo | Binary | What it does |
 |---|---|---|
 | [ballast-survey](https://github.com/j0yen/ballast-survey) | `ballast-survey` | v0.3.0 — Read-only disk inventory: walks roots, finds reclaimable subtrees (target/ dirs, cargo caches, node_modules, ~/.cache), sizes with mtime/age, emits structured JSON sorted by reclaimable bytes. Ground truth for ballast-reap and ballast-guard. |
-| [ballast-guard](https://github.com/j0yen/ballast-guard) | `ballast-guard` | Autonomous disk high/low-water SLO watcher: polls disk usage against configurable thresholds (advisory/high/low-water), reaps the safest candidates (fossil first) until projected free crosses low-water, and emits structured JSON events at every transition. Composes with `ballast-survey` and `ballast-reap`; never reaps beyond `max_safety` without a human config edit. |
+| [ballast-guard](https://github.com/j0yen/ballast-guard) | `ballast-guard` | v0.1.0 — Autonomous disk SLO guard: watches high/low-water marks (configurable guard.toml), invokes ballast-reap fossil-first until usage drops below low-water, emits structured JSON events. Exit codes: 0/2/3/4. |
 
 ## AtScale tooling
 
