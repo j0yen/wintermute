@@ -195,6 +195,7 @@ Read-only measurement and safe-reclaim fleet for disk weight management on a lap
 | [ballast-trend](https://github.com/j0yen/ballast-trend) | `ballast-trend` | v0.1.0 — Disk growth rate tracker: snapshots ballast-survey --json output into a bounded ring (~/.local/state/ballast/trend/), diffs pairs of snapshots to compute per-path bytes/day growth rates, projects ETA to a configurable high-water mark, emits JSON for downstream tools. |
 | [ballast-pilot](https://github.com/j0yen/ballast-pilot) | — | v0.1.0 — Systemd timer + default config that wires ballast-guard to run hourly: guard.toml (mode=report, high-water=90, low-water=80, advisory=85), oneshot service, hourly Persistent timer, idempotent install.sh. Observes before it ever reaps. |
 | [ballast-digest](https://github.com/j0yen/ballast-digest) | `ballast-digest` | v0.1.0 — Read-only disk health synthesizer: fuses ballast-survey (reclaimable paths + fossil/stale/warm class), ballast-trend (growth rates + ETA), and guard-events.jsonl (SLO band history, reclaimed bytes) into a single ranked digest block. `--json` for downstream embedding; `--top-k`, `--now` for tests. |
+| [careen-guard](https://github.com/j0yen/careen-guard) | `careen-guard` | v0.1.0 — SLO-triggered sweep of live Rust target dirs: ballast-guard complement that handles binary-current dirs ballast cannot reap; sweeps largest live targets via careen-sweep on breach, emits ballast-compatible Event JSON (Ok/Warn/Breach/BreachUnresolved). Exit codes: 0/2/3/4. |
 
 ## AtScale tooling
 
