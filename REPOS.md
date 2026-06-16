@@ -239,6 +239,7 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 |---|---|---|
 | [mqo-anomaly-scan](https://github.com/j0yen/mqo-anomaly-scan) | `mqo-anomaly-scan` | Statistical outlier detection for MQO query result rowsets: z-score, IQR, and MAD methods; per-group `--by` dimension support; `serve` JSON dispatcher for agent pipelines. Returns only ranked outlier rows so a model gets "row 47 is 3.2σ above the mean" without paging all rows. |
 | [mqo-clarify](https://github.com/joeyen-atscale/mqo-clarify) | `mqo-clarify` | Detect ambiguous field bindings and emit disambiguation questions before MQO execution: `ask --candidates <file>` checks per-field candidate sets for within-margin ties, emits `{ambiguous, questions}` JSON; `serve` mode handles `clarify_binding` tool calls; `--fail-if-ambiguous` exit-code gate for agent pipelines. |
+| [mqo-error-explain](https://github.com/joeyen-atscale/mqo-error-explain) | `mqo-error-explain` | Maps raw backend query faults (XMLA HRESULT, DAX/MDX/SQL errors) to structured `{matched, category, cause, suggested_fix}` from a data-driven TOML catalog; `explain` subcommand with `--backend` narrowing, `--catalog` override, `--format json`; `serve` mode for MCP tool dispatch; unknown faults return generic guidance, never a fabricated cause. |
 
 ## Recently shipped (auto)
 
