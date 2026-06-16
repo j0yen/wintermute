@@ -201,6 +201,7 @@ Read-only measurement and safe-reclaim fleet for disk weight management on a lap
 | Repo | Binary | What it does |
 |---|---|---|
 | [mqo-catalog-embed](https://github.com/j0yen/mqo-catalog-embed) | `mqo-catalog-embed` | Semantic (embedding) retrieval over AtScale model catalog columns — offline synonym-aware complement to keyword `search_columns`: `index`/`search`/`hybrid`/`serve` subcommands, pluggable hash (no-network default) or subprocess embedder, cosine + BM25 hybrid blend with `--alpha`, MCP tool server via stdin/stdout. |
+| [mqo-measure-lint](https://github.com/j0yen/mqo-measure-lint) | `mqo-measure-lint` | Lint semantic models for AI-hostile naming, gaps, and redundancy: flags ambiguous names (M001), numeric dimensions (M002), versioned measure names (M003), redundant measures ≥85% similar (M004), binding-unfriendly name formats (M005), and sibling-model coverage gaps (M006); `--format sarif` for CI/IDE; `serve` MCP mode; `--rules` TOML for per-project suppress/extend. |
 | [mqo-ai-coverage](https://github.com/joeyen-atscale/mqo-ai-coverage) | `mqo-ai-coverage` | Score a model's AI-queryability and reveal dark corners: scores every element on discoverability (description richness + BFO grounding), bindability (name NL patterns + embed-index rank), and queryability (grain, sensitivity); bottom quintile flagged as dark corners with `top_issue`; `--format html` emits a sortable author dashboard; `serve` MCP mode. |
 | [mqo-chart-caption](https://github.com/joeyen-atscale/mqo-chart-caption) | `mqo-chart-caption` | Auto-generates natural-language captions for AtScale MQO chart outputs: maps measure/dimension structure to a concise summary sentence with trend detection, period-over-period delta annotation, and `--format json` for agent pipeline use; `serve` MCP mode. |
 | [mqo-result-cache](https://github.com/j0yen/mqo-result-cache) | `mqo-result-cache` | Content-addressed result cache for AtScale MQO queries: SHA-256 keyed on canonicalized `BoundMqo` (sorted keys, cosmetic fields stripped), `key`/`get`/`put`/`purge`/`stats`/`serve` subcommands, max-age eviction, `--no-store` sensitivity interlock, JSON-RPC stdin `serve` mode. |
@@ -322,4 +323,5 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 | Repo | Binary | What it does |
 |---|---|---|
 | [mqo-template](https://github.com/joeyen-atscale/mqo-template) | `mqo-template` | Parameterized reusable MQO query templates: save/get/list/delete/instantiate JSON templates with `{{slot}}` placeholders. |
+| [mqo-grounding-advisor](https://github.com/j0yen/mqo-grounding-advisor) | `mqo-grounding-advisor` | Suggest BFO 2020 grounding for ungrounded AtScale model elements — rule-based pattern matching with plain-English rationale. |
 
