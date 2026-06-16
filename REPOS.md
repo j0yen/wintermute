@@ -200,7 +200,7 @@ Perspective-diverse source gathering and stance-tagged corpus for contested clai
 | [doxa](https://github.com/joeyen-atscale/doxa) | `doxa` | Framework-neutral BFO-grounded moral TBox for comparative ethics: 15 moral-domain classes (MoralAgent, MoralPatient, Action, Consequence, Intention, Duty, Virtue, Right, Harm, Wellbeing, Maxim, Justice, RightAction, WrongAction, PermissibleAction) + 8 object properties, compiled to OWL 2 DL via ousia-forge. `doxa build-core`/`doxa check-core` subcommands. Framework modules (next PRD) add equivalence axioms over this shared vocabulary to make ethical frameworks commensurable. |
 | [ousia-forge](https://github.com/j0yen/ousia-forge) | `ousia-forge` | Build the World Ontology (OWL 2 DL / RDF/XML) from a declarative TOML spec; subcommands: build, check, stats. Gate tool for the full ousia toolchain. |
 | [ousia-sparql](https://github.com/j0yen/ousia-sparql) | `ousia-sparql` | SPARQL 1.1 query layer over the materialized World Ontology: load OWL + ABox into an oxigraph store, materialize entailments via ousia-reason, and query with `load`/`query`/`ask`/`serve`; ships a canned pack (dignity-bearers, rights-violations, unaccountable-authority, just-societies, etc.) that turns the ethical structure into runnable demo queries. |
-| [ousia-atscale](https://github.com/j0yen/ousia-atscale) | `ousia-atscale` | BFO grounding bridge for the AtScale semantic layer: maps AtScale model elements (measures, dimensions, column-groups) onto BFO 2020 categories and emits annotation overlays with §4.4 vocabulary (philosophicalGrounding, domainModule, aristotelianDefinition). Subcommands: ground, annotate, report. Offline JSON path; MCP live path gated. |
+| [ousia-atscale](https://github.com/j0yen/ousia-atscale) | `ousia-atscale` | v0.5.0 — BFO grounding bridge for the AtScale semantic layer: maps AtScale model elements (measures, dimensions, column-groups) onto BFO 2020 categories and emits annotation overlays with §4.4 vocabulary (philosophicalGrounding, domainModule, aristotelianDefinition). Subcommands: ground, annotate, report, export, diff, validate, **serve** (MCP stdio server exposing ground_model, coverage_report, diff_models, validate_model over JSON-RPC 2.0). |
 | [ousia-mqo](https://github.com/j0yen/ousia-mqo) | `ousia-mqo` | BFO-grounded AtScale model overlays as a reusable Rust library: `Grounder` lib wraps `ousia-atscale annotate` with SHA-256 content-hash caching (~100ms→0ms on repeat), typed `GroundedOverlay`/`Annotation`/`Grounding`/`AristotelianDef` structs, `ground_value` for in-memory models. Gate lib for the ousia-mqo fleet (diff, bind, serve). |
 | [ousia-mcp](https://github.com/j0yen/ousia-mcp) | `ousia-mcp` | MCP server exposing ousia-reason, ousia-sparql, and ousia-guard as five read-only tools (classify, query, ask_canned, guard_check, explain) over stdio; ontology loaded once at startup, answers from in-memory reasoned store. |
 | [recourse](https://github.com/j0yen/recourse) | `recourse` | Durable, PII-free verdict receipt layer for ousia-guard: `receipt emit` hashes the action (blake3, never raw), appends NDJSON receipt; `show`/`ls` for audit and pipeline integration. First crate in the verdict-recourse chain. |
@@ -283,3 +283,10 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 | Repo | Binary | What it does |
 |---|---|---|
 | [roundtable](https://github.com/joeyen-atscale/roundtable) | `roundtable` | Daily session orchestrator: chains the-lunch → vicious-circle → conning-tower with XDG-compliant ledger, dedup guard, and dry-run mode. `roundtable session [--date YYYY-MM-DD] [--dry-run] [--bin-dir <dir>]`. |
+
+## MQO template management
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [mqo-template](https://github.com/joeyen-atscale/mqo-template) | `mqo-template` | Parameterized reusable MQO query templates: save/get/list/delete/instantiate JSON templates with `{{slot}}` placeholders. |
+
