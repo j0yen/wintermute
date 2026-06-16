@@ -222,6 +222,12 @@ Semantic audit trail for autonomous agent actions — an append-only human-reada
 
 Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 
+## MQO tools
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [mqo-anomaly-scan](https://github.com/j0yen/mqo-anomaly-scan) | `mqo-anomaly-scan` | Statistical outlier detection for MQO query result rowsets: z-score, IQR, and MAD methods; per-group `--by` dimension support; `serve` JSON dispatcher for agent pipelines. Returns only ranked outlier rows so a model gets "row 47 is 3.2σ above the mean" without paging all rows. |
+
 ## Recently shipped (auto)
 
 | Repo | Binary | What it does |
