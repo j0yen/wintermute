@@ -285,6 +285,7 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 | Repo | Binary | What it does |
 |---|---|---|
 | [mqo-binding-confidence](https://github.com/joeyen-atscale/mqo-binding-confidence) | `mqo-binding-confidence` | Calibrated 0–1 confidence scorer for MQO bound fields — name match, margin, uniqueness, and structural fit combine into a deterministic signal with `high\|medium\|low` bucket and ranked alternatives; `score` subcommand with `--fail-below` CI gate; `serve` MCP-style dispatcher. |
+| [mqo-agent](https://github.com/j0yen/mqo-agent) | `mqo-agent` | Adaptive reference agent that plans which MQO pillars to call for any NL question: deterministic rule-based planner (catalog-embed → binding-confidence → clarify? → time-intelligence? → engine-parity? → sensitivity-scan → rosetta-credential); `ask`/`plan` subcommands; `--mock` CI mode; clarify loop with `--answer` resume; `serve` MCP dispatcher. |
 
 ## Session orchestrator
 
