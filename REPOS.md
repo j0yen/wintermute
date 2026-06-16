@@ -61,6 +61,7 @@ clones, builds, and wires up everything on a fresh machine.
 | [wm-hardware-drift](https://github.com/j0yen/wm-hardware-drift) | `wm-hardware-drift` | Sweep CLI that runs both mock and `--features=real-hardware` cargo test sets, diffs per-test outcomes, and emits a `hardware-drift.json` receipt; `/self-review` surfaces any `drift_count > 0` as a finding. |
 | [changeover](https://github.com/j0yen/changeover) | `changeover` | Measure the agorabus restart deafness window: `changeover probe --daemon <name>` triggers a `systemctl --user restart`, publishes a heartbeat stream, and reports `deafness_ms` + `events_missed_window`. `--dry-run` gives a synthetic offline report; `--format json` for pipeline use. |
 | [tokenmeter](https://github.com/j0yen/tokenmeter) | `tokenmeter` | Per-tool token cost estimator for Claude Code sessions: parses session JSONL transcripts and estimates input/output token cost by tool name. `summary`/`session <id>`/`top --n N` subcommands; `--json` output; configurable pricing via `--input-price`/`--output-price`. |
+| [memlog-capture-selfcheck](https://github.com/j0yen/memlog-capture-selfcheck) | `memlog-capture-selfcheck` | Cross-references the PreCompact writer's firing log against the memlog ring write count to detect the "firing-but-empty" failure class. Emits GREEN/AMBER/RED/MISSING verdicts; exits 3 on RED so self-review Phase B.5 can gate on it; `--docket` line for standing-findings ingestion. |
 
 ## Memory layer
 
@@ -192,6 +193,7 @@ Read-only measurement and safe-reclaim fleet for disk weight management on a lap
 | [ballast-guard](https://github.com/j0yen/ballast-guard) | `ballast-guard` | v0.1.0 — Autonomous disk SLO guard: watches high/low-water marks (configurable guard.toml), invokes ballast-reap fossil-first until usage drops below low-water, emits structured JSON events. Exit codes: 0/2/3/4. |
 | [ballast-trend](https://github.com/j0yen/ballast-trend) | `ballast-trend` | v0.1.0 — Disk growth rate tracker: snapshots ballast-survey --json output into a bounded ring (~/.local/state/ballast/trend/), diffs pairs of snapshots to compute per-path bytes/day growth rates, projects ETA to a configurable high-water mark, emits JSON for downstream tools. |
 | [ballast-pilot](https://github.com/j0yen/ballast-pilot) | — | v0.1.0 — Systemd timer + default config that wires ballast-guard to run hourly: guard.toml (mode=report, high-water=90, low-water=80, advisory=85), oneshot service, hourly Persistent timer, idempotent install.sh. Observes before it ever reaps. |
+| [ballast-digest](https://github.com/j0yen/ballast-digest) | `ballast-digest` | v0.1.0 — Read-only disk health synthesizer: fuses ballast-survey (reclaimable paths + fossil/stale/warm class), ballast-trend (growth rates + ETA), and guard-events.jsonl (SLO band history, reclaimed bytes) into a single ranked digest block. `--json` for downstream embedding; `--top-k`, `--now` for tests. |
 
 ## AtScale tooling
 
