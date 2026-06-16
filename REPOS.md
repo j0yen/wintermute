@@ -191,6 +191,7 @@ Read-only measurement and safe-reclaim fleet for disk weight management on a lap
 | [ballast-survey](https://github.com/j0yen/ballast-survey) | `ballast-survey` | v0.3.0 — Read-only disk inventory: walks roots, finds reclaimable subtrees (target/ dirs, cargo caches, node_modules, ~/.cache), sizes with mtime/age, emits structured JSON sorted by reclaimable bytes. Ground truth for ballast-reap and ballast-guard. |
 | [ballast-guard](https://github.com/j0yen/ballast-guard) | `ballast-guard` | v0.1.0 — Autonomous disk SLO guard: watches high/low-water marks (configurable guard.toml), invokes ballast-reap fossil-first until usage drops below low-water, emits structured JSON events. Exit codes: 0/2/3/4. |
 | [ballast-trend](https://github.com/j0yen/ballast-trend) | `ballast-trend` | v0.1.0 — Disk growth rate tracker: snapshots ballast-survey --json output into a bounded ring (~/.local/state/ballast/trend/), diffs pairs of snapshots to compute per-path bytes/day growth rates, projects ETA to a configurable high-water mark, emits JSON for downstream tools. |
+| [ballast-pilot](https://github.com/j0yen/ballast-pilot) | — | v0.1.0 — Systemd timer + default config that wires ballast-guard to run hourly: guard.toml (mode=report, high-water=90, low-water=80, advisory=85), oneshot service, hourly Persistent timer, idempotent install.sh. Observes before it ever reaps. |
 
 ## AtScale tooling
 
