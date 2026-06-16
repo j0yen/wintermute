@@ -48,7 +48,7 @@ fi
 
 # Idempotency: bail if another worker for this sid is already alive.
 self_pid=$$
-if pgrep -f "agorabus-worker.sh $sid\$" | grep -v "^${self_pid}\$" >/dev/null 2>&1; then
+if pgrep -f "agorabus-worker\.sh $sid( |\$)" | grep -v "^${self_pid}\$" >/dev/null 2>&1; then
     exit 0
 fi
 
