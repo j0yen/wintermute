@@ -180,6 +180,13 @@ On-device human-services resource directory — ingests HSDS JSON exports and 21
 |---|---|---|
 | [homeward](https://github.com/j0yen/homeward) | `homeward` | A dozen heterogeneous sources describe the same thing — a dog or cat in a shelter |
 
+## AtScale tooling
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [mqo-result-cache](https://github.com/j0yen/mqo-result-cache) | `mqo-result-cache` | Content-addressed result cache for AtScale MQO queries: SHA-256 keyed on canonicalized `BoundMqo` (sorted keys, cosmetic fields stripped), `key`/`get`/`put`/`purge`/`stats`/`serve` subcommands, max-age eviction, `--no-store` sensitivity interlock, JSON-RPC stdin `serve` mode. |
+| [mqo-time-intelligence](https://github.com/joeyen-atscale/mqo-time-intelligence) | `mqo-time-intelligence` | Time phrase resolver and period-over-period MQO deriver for AtScale: `derive` subcommand takes a base MQO JSON + spec (yoy/qoq/mom/wow/rolling:N/mtd/qtd/ytd/pop:<grain>) and emits a derived MQO bundle with shifted date filters; `serve` mode accepts NDJSON tool requests on stdin for MCP server integration. |
+
 ## Concord (argument analysis)
 
 Perspective-diverse source gathering and stance-tagged corpus for contested claims.
@@ -266,3 +273,9 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 | Repo | Binary | What it does |
 |---|---|---|
 | [mqo-binding-confidence](https://github.com/joeyen-atscale/mqo-binding-confidence) | `mqo-binding-confidence` | Calibrated 0–1 confidence scorer for MQO bound fields — name match, margin, uniqueness, and structural fit combine into a deterministic signal with `high\|medium\|low` bucket and ranked alternatives; `score` subcommand with `--fail-below` CI gate; `serve` MCP-style dispatcher. |
+
+## Session orchestrator
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [roundtable](https://github.com/joeyen-atscale/roundtable) | `roundtable` | Daily session orchestrator: chains the-lunch → vicious-circle → conning-tower with XDG-compliant ledger, dedup guard, and dry-run mode. `roundtable session [--date YYYY-MM-DD] [--dry-run] [--bin-dir <dir>]`. |
