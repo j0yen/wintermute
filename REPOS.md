@@ -184,6 +184,7 @@ On-device human-services resource directory — ingests HSDS JSON exports and 21
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [mqo-catalog-embed](https://github.com/j0yen/mqo-catalog-embed) | `mqo-catalog-embed` | Semantic (embedding) retrieval over AtScale model catalog columns — offline synonym-aware complement to keyword `search_columns`: `index`/`search`/`hybrid`/`serve` subcommands, pluggable hash (no-network default) or subprocess embedder, cosine + BM25 hybrid blend with `--alpha`, MCP tool server via stdin/stdout. |
 | [mqo-result-cache](https://github.com/j0yen/mqo-result-cache) | `mqo-result-cache` | Content-addressed result cache for AtScale MQO queries: SHA-256 keyed on canonicalized `BoundMqo` (sorted keys, cosmetic fields stripped), `key`/`get`/`put`/`purge`/`stats`/`serve` subcommands, max-age eviction, `--no-store` sensitivity interlock, JSON-RPC stdin `serve` mode. |
 | [mqo-time-intelligence](https://github.com/joeyen-atscale/mqo-time-intelligence) | `mqo-time-intelligence` | Time phrase resolver and period-over-period MQO deriver for AtScale: `derive` subcommand takes a base MQO JSON + spec (yoy/qoq/mom/wow/rolling:N/mtd/qtd/ytd/pop:<grain>) and emits a derived MQO bundle with shifted date filters; `serve` mode accepts NDJSON tool requests on stdin for MCP server integration. |
 
