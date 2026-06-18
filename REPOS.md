@@ -341,3 +341,4 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 | [mqo-template](https://github.com/joeyen-atscale/mqo-template) | `mqo-template` | Parameterized reusable MQO query templates: save/get/list/delete/instantiate JSON templates with `{{slot}}` placeholders. |
 | [mqo-grounding-advisor](https://github.com/j0yen/mqo-grounding-advisor) | `mqo-grounding-advisor` | Suggest BFO 2020 grounding for ungrounded AtScale model elements — rule-based pattern matching with plain-English rationale. |
 
+| [tether-gossip](https://github.com/j0yen/tether-gossip) | `wm-tether-gossip` | Bidirectional gossip.md mirror over fleet bus — one gossip log across machines. |
