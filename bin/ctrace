@@ -4,6 +4,7 @@
   ctrace start [--root PID] [--log PATH]    start tracer for PID tree (default: parent shell)
   ctrace stop                                stop the active tracer
   ctrace status                              show tracer state, event count, log size
+  ctrace doctor [--fix] [--root PID] [--log PATH]  diagnose (and optionally cure) tracer health
   ctrace query [--type T] [--since SEC] [--grep RE]   filter the log
   ctrace tail [-n N]                         tail the live log
 """
@@ -25,22 +26,45 @@ def sf(name):
     return STATE / name
 
 
+def reap_pidfile():
+    """Remove tracer.pid even when root-owned. Returns True if absent or removed."""
+    p = sf("tracer.pid")
+    if not p.exists():
+        return True
+    try:
+        p.unlink()
+        return True
+    except PermissionError:
+        r = subprocess.run(["sudo", "-n", "rm", "-f", str(p)])
+        return r.returncode == 0
+
+
+def is_our_tracer(pid):
+    """Return True only if pid is a bpftrace process running our session.bt script."""
+    try:
+        comm = Path(f"/proc/{pid}/comm").read_text().strip()
+        if comm != "bpftrace":
+            return False
+        cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().decode("utf-8", errors="replace")
+        return SCRIPT.name in cmdline
+    except (OSError, ValueError):
+        return False
+
+
 def running_pid():
+    """Return the PID of our running tracer, or None if absent/stale/foreign."""
     p = sf("tracer.pid")
     if not p.exists():
         return None
     try:
         pid = int(p.read_text().strip())
-    except ValueError:
+    except (ValueError, OSError):
+        reap_pidfile()
         return None
-    try:
-        os.kill(pid, 0)
-        return pid
-    except ProcessLookupError:
+    if not is_our_tracer(pid):
+        reap_pidfile()
         return None
-    except PermissionError:
-        # exists but we can't signal it (root-owned via sudo) — still running
-        return pid
+    return pid
 
 
 def cmd_start(args):
@@ -81,7 +105,14 @@ def cmd_start(args):
     except subprocess.CalledProcessError:
         pass
 
-    sf("tracer.pid").write_text(str(bpf_pid))
+    pid_file = sf("tracer.pid")
+    pid_file.write_text(str(bpf_pid))
+    # Best-effort: ensure tracer.pid is owned by the invoking user
+    try:
+        os.chown(str(pid_file), os.getuid(), os.getgid())
+    except OSError:
+        pass
+
     sf("current.json").write_text(json.dumps({
         "tracer_pid": bpf_pid, "sudo_pid": proc.pid,
         "root_pid": root, "started_at": time.time(),
@@ -101,8 +132,98 @@ def cmd_stop(_args):
         time.sleep(0.1)
     if running_pid():
         subprocess.run(["sudo", "-n", "kill", "-KILL", str(pid)])
-    sf("tracer.pid").unlink(missing_ok=True)
+    reap_pidfile()
     print(json.dumps({"stopped": pid}))
+
+
+def _doctor_diagnose():
+    """Return a diagnosis dict; touches nothing."""
+    p = sf("tracer.pid")
+    pidfile_present = p.exists()
+
+    if not pidfile_present:
+        return {
+            "state": "down",
+            "tracer_pid": None,
+            "pidfile_owner": None,
+            "pidfile_present": False,
+            "would_fix": ["start-tracer"],
+        }
+
+    # Determine pidfile owner
+    try:
+        st = p.stat()
+        pidfile_owner = "root" if st.st_uid == 0 else os.environ.get("USER", str(st.st_uid))
+        root_owned = st.st_uid == 0
+    except OSError:
+        pidfile_owner = "unknown"
+        root_owned = False
+
+    try:
+        pid = int(p.read_text().strip())
+    except (ValueError, OSError):
+        return {
+            "state": "stale-pidfile",
+            "tracer_pid": None,
+            "pidfile_owner": pidfile_owner,
+            "pidfile_present": True,
+            "would_fix": ["reap-pidfile", "start-tracer"],
+        }
+
+    if is_our_tracer(pid):
+        return {
+            "state": "healthy",
+            "tracer_pid": pid,
+            "pidfile_owner": pidfile_owner,
+            "pidfile_present": True,
+            "would_fix": [],
+        }
+
+    # PID exists but is not our tracer — check if it exists at all
+    pid_exists = False
+    try:
+        os.kill(pid, 0)
+        pid_exists = True
+    except ProcessLookupError:
+        pid_exists = False
+    except PermissionError:
+        pid_exists = True
+
+    if not pid_exists:
+        state = "root-owned-trap" if root_owned else "stale-pidfile"
+    else:
+        state = "foreign-pid"
+
+    return {
+        "state": state,
+        "tracer_pid": pid,
+        "pidfile_owner": pidfile_owner,
+        "pidfile_present": True,
+        "would_fix": ["reap-pidfile", "start-tracer"],
+    }
+
+
+def cmd_doctor(args):
+    diagnosis = _doctor_diagnose()
+
+    if not args.fix:
+        print(json.dumps(diagnosis, indent=2))
+        sys.exit(0 if diagnosis["state"] == "healthy" else 1)
+
+    # --fix: heal if not healthy, idempotent if already healthy
+    if diagnosis["state"] == "healthy":
+        print(json.dumps(diagnosis, indent=2))
+        return
+
+    if diagnosis["pidfile_present"]:
+        reap_pidfile()
+
+    cmd_start(args)
+
+    final = _doctor_diagnose()
+    print(json.dumps(final, indent=2))
+    if final["state"] != "healthy":
+        sys.exit(1)
 
 
 def cmd_status(_args):
@@ -179,6 +300,12 @@ def main():
 
     sub.add_parser("stop").set_defaults(fn=cmd_stop)
     sub.add_parser("status").set_defaults(fn=cmd_status)
+
+    d = sub.add_parser("doctor", help="diagnose (and optionally cure) tracer health")
+    d.add_argument("--fix", action="store_true", help="reap trap and restart tracer if unhealthy")
+    d.add_argument("--root", type=int)
+    d.add_argument("--log")
+    d.set_defaults(fn=cmd_doctor)
 
     q = sub.add_parser("query")
     q.add_argument("--type", action="append")
