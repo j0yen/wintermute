@@ -11,6 +11,7 @@ clones, builds, and wires up everything on a fresh machine.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [consign](https://github.com/j0yen/consign) | `consign` | Accurate fleet push-debt enumerator: walks every wintermute git repo and classifies push-debt into named buckets (clean/ahead/no-upstream/no-remote/diverged); fixes the systematic undercount in self-review that silently dropped repos with no upstream tracking branch. |
 | [atlas](https://github.com/j0yen/atlas) | `atlas` | Queryable node graph of the wintermute PRD corpus: parse every PRD's frontmatter + both skill manifests + REPOS.md into typed vision/prd/repo nodes; `atlas nodes` + `atlas show <vision>` with `--format json`. Read-only; ~23 ms cold run over 100+ PRDs. |
 | [autobuilder](https://github.com/j0yen/autobuilder) | `autobuilder` | Claude Code skill + Rust companion binary that turns a PRD into a vetted Rust project — intent-cards, iterate-and-prove loop, 25-receipt release gate. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/autobuilder/main/skill/install.sh \| bash`. |
 | [autobuilder-metric-harness](https://github.com/j0yen/autobuilder-metric-harness) | — | Unfakeable-scalar metric collector the autobuilder loop polls each iteration. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/autobuilder-metric-harness/main/install.sh \| bash`. |
