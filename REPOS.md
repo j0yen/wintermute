@@ -163,7 +163,10 @@ agorabus.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [corpus-attest](https://github.com/j0yen/corpus-attest) | `corpus-attest` | Fleet membership attestation — proves a node is a legitimate limb of the self via Ed25519 signing; `whoami`, `enroll`, `verify`, `present` subcommands; SKIP-honest not-enrolled behavior. Root of the corpus dependency graph. |
 | [corpus-converge](https://github.com/j0yen/corpus-converge) | `corpus-converge` | Self-state convergence primitive: version vector (per-node monotonic seq map), persist/load, rejoin protocol that computes per-channel gap after partition, and a freshness gate (`fresh?`) other daemons can call before acting on possibly-stale state. |
+| [corpus-arbiter](https://github.com/j0yen/corpus-arbiter) | `corpus-arbiter` | Fleet-wide advisory lease registry — single-writer discipline across nodes; `acquire`/`release`/`renew`/`status`/`with` subcommands with injected-clock registry, deny-by-default attestation, and fail-safe no-arbiter mode. |
+| [corpus-introspect](https://github.com/j0yen/corpus-introspect) | `corpus-introspect` | Multinode self-mirror — synthesises attest, roster, converge, arbiter, and tether into a single `WholeSelf` JSON record and human-readable self-portrait; `--format selfreview` feeds the self-review playbook. |
 
 ## Constellation fleet
 
