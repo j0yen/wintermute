@@ -293,6 +293,10 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [tether-link](https://github.com/j0yen/tether-link) | `tether-link` | The problem: agorabus is a Unix-domain socket — it cannot reach another machine |
+
+| Repo | Binary | What it does |
+|---|---|---|
 | [tether-tools](https://github.com/j0yen/tether-tools) | `tether-tools` | The problem: the wintermute toolkit (`recall`, `ctrace`, `procstat`, `wchg`, |
 
 | Repo | Binary | What it does |
