@@ -159,6 +159,12 @@ agorabus.
 | [wintermute-presence](https://github.com/j0yen/wintermute-presence) | `wm-presence` | Privacy-first presence heartbeat daemon: emits `wm.presence.summon` on each interaction (count only, never text) and `wm.presence.silence` when no interaction falls in the configured waking-hours window. Default OFF; enrolls via `wm-family`. |
 | [wintermute-lucid](https://github.com/j0yen/wintermute-lucid) | `wm-lucid` | Flight recorder for the agorabus bus: subscribes to the full `wm.` prefix, persists every event to a rotating turn-keyed NDJSON log under `~/.cache/wintermute/lucid/`, ships `lucid tap/trace/mind/explain/watch` subcommands for live tailing and post-hoc turn reconstruction. |
 
+## Corpus (self-state coherence)
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [corpus-converge](https://github.com/j0yen/corpus-converge) | `corpus-converge` | Self-state convergence primitive: version vector (per-node monotonic seq map), persist/load, rejoin protocol that computes per-channel gap after partition, and a freshness gate (`fresh?`) other daemons can call before acting on possibly-stale state. |
+
 ## Constellation fleet
 
 Multi-machine expansion of the wintermute ecosystem — fleet provisioning, mesh networking, and coordinated deployment.
