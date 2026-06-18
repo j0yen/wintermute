@@ -64,6 +64,7 @@ clones, builds, and wires up everything on a fresh machine.
 | [changeover](https://github.com/j0yen/changeover) | `changeover` | Measure the agorabus restart deafness window: `changeover probe --daemon <name>` triggers a `systemctl --user restart`, publishes a heartbeat stream, and reports `deafness_ms` + `events_missed_window`. `--dry-run` gives a synthetic offline report; `--format json` for pipeline use. |
 | [tokenmeter](https://github.com/j0yen/tokenmeter) | `tokenmeter` | Per-tool token cost estimator for Claude Code sessions: parses session JSONL transcripts and estimates input/output token cost by tool name. `summary`/`session <id>`/`top --n N` subcommands; `--json` output; configurable pricing via `--input-price`/`--output-price`. |
 | [memlog-capture-selfcheck](https://github.com/j0yen/memlog-capture-selfcheck) | `memlog-capture-selfcheck` | Cross-references the PreCompact writer's firing log against the memlog ring write count to detect the "firing-but-empty" failure class. Emits GREEN/AMBER/RED/MISSING verdicts; exits 3 on RED so self-review Phase B.5 can gate on it; `--docket` line for standing-findings ingestion. |
+| [trim](https://github.com/j0yen/trim) | `trim` | Honest memory & swap pressure enumerator: walks `/proc/meminfo`, every `/proc/<pid>/status`, cgroup-v2 memory surfaces, and `/proc/pressure/memory` to attribute resident and swapped bytes to process and cgroup. `trim survey` ranked human table or `--format json`; `--by swap\|rss --top N`. |
 
 ## Memory layer
 
