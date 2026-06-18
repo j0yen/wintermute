@@ -294,6 +294,10 @@ Each repo is dual-licensed MIT or Apache-2.0 at the user's option.
 
 | Repo | Binary | What it does |
 |---|---|---|
+| [colophon](https://github.com/j0yen/colophon) | `colophon` | The booted `7.0.11-arch1-1-wintermute` kernel stamps a structured |
+
+| Repo | Binary | What it does |
+|---|---|---|
 | [tether-link](https://github.com/j0yen/tether-link) | `tether-link` | The problem: agorabus is a Unix-domain socket — it cannot reach another machine |
 
 | Repo | Binary | What it does |
