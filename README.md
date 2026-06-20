@@ -1,25 +1,34 @@
 # wintermute
 
-Local CLI tools that make a coding agent (Claude Code, in practice) less
-timid: a sandbox, a supervised background runner, FS/proc/tmux observers, a
-transactional editor, two eBPF tools that audit and constrain what gets done
-on the host, and a wider ecosystem of agentic-memory / session / runtime
-tooling that each live in their own repo.
+Local tools that let a coding agent on Linux run things safely, watch what
+happened, undo it, and remember — so it makes fewer timid, low-leverage
+choices. This repo is the front door to that ecosystem and the one command
+that installs it.
 
-This repo is the **bootstrap point** for the ecosystem:
+A coding agent left to itself on a real machine is cautious for the wrong
+reason: it can't cheaply tell what a command will do, what it did, or how to
+take it back. So it under-reaches. The fix isn't a smarter prompt — it's
+giving the agent the same primitives a careful engineer uses: a sandbox to
+contain a command, observers to read the result, a transaction to roll an
+edit back, a memory that survives the session. Each is a small tool that
+does one thing; together they raise the ceiling on what the agent will
+attempt.
+
+Eight of those primitives ship here as single-file Python 3 scripts under
+[`bin/`](bin) — `sbx`, `pevent`, `wchg`, `procstat`, `txn-edit`, `tcap`,
+`ctrace`, `bpolicy`. No dependencies beyond the stdlib and the platform
+binary each one shells out to (`bwrap`, `watchman`, `tmux`, `bpftrace`,
+`bpftool`). The rest of the ecosystem — the Rust memory layer (`recall`),
+the agent bus (`agorabus`), the self-review and runtime crates — lives in
+companion repos, each its own project.
+
+Two files make this repo the bootstrap point:
 
 - [`bootstrap/install.sh`](bootstrap/install.sh) — clones each project repo,
   builds the Rust crates, symlinks binaries into `~/.local/bin`, and wires
-  the Claude Code SessionStart hook scripts from `dotfiles/.claude/`.
-- [`REPOS.md`](REPOS.md) — index of all the per-project repos with one-line
-  descriptions.
-
-The Python tools in this repo (`sbx`, `bpolicy`, `ctrace`, `pevent`,
-`procstat`, `tcap`, `txn-edit`, `wchg`) are single-file Python 3 scripts
-(no deps beyond the stdlib + the platform binary each one shells out to:
-`bwrap`, `watchman`, `tmux`, `bpftrace`, `bpftool`). The Rust tooling
-(`recall`, `agorabus`, `skill-manifest`, etc.) lives in companion repos
-listed in [`REPOS.md`](REPOS.md).
+  the Claude Code SessionStart hooks from `dotfiles/.claude/`. Safe to rerun;
+  `--dry-run` shows the plan.
+- [`REPOS.md`](REPOS.md) — the index of every companion repo, one line each.
 
 ## Linux compatibility
 
@@ -236,10 +245,12 @@ can leave a zero-byte file behind.
 
 MIT — see [LICENSE](LICENSE).
 
-## Why this exists
+## The four primitives, mapped to tools
 
-Agent-friendly infrastructure. The premise: an agent is less likely to make
-timid, low-leverage choices if it has cheap, structured ways to (a) run things
-safely, (b) observe what happened, (c) undo, and (d) remember. `sbx`/`bpolicy`
-are (a), `pevent`/`wchg`/`procstat`/`tcap`/`ctrace` are (b), `txn-edit` is (c),
-and `recall` is (d).
+The premise stated at the top resolves into four capabilities, and every tool
+here is one of them:
+
+- **Run safely** — `sbx` (bubblewrap sandbox), `bpolicy` (eBPF-LSM write enforcer).
+- **Observe what happened** — `pevent`, `wchg`, `procstat`, `tcap`, `ctrace`.
+- **Undo** — `txn-edit` (snapshot / commit / rollback).
+- **Remember** — `recall`, in its own repo: [`j0yen/recall`](https://github.com/j0yen/recall).
