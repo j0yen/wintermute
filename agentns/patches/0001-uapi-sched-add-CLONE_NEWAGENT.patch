@@ -1,22 +1,33 @@
-From: j0yen <jyen.tech@gmail.com>
-Date: 2026-05-24
-Subject: [PATCH 01/10] uapi/sched: allocate CLONE_NEWAGENT bit
+From: Joe Yen <jyen.tech@gmail.com>
+Date: 2026-06-09
+Subject: [PATCH 01/10] uapi/sched: add clone3-only CLONE_NEWAGENT flag
 
-Claim bit 0x40000000 for CLONE_NEWAGENT.  Historically held by
-CLONE_NEWUSER pre-3.8; reclaimed here for the wintermute Agent Namespace.
+The agent namespace is NOT created via a legacy 32-bit clone/unshare flag:
+that flag space is exhausted (CSIGNAL..CLONE_IO are all claimed; CLONE_NEWTIME
+0x80 took the last low bit). An early draft #define'd CLONE_NEWAGENT as
+0x00000100 — which IS CLONE_VM — so every unshare(CLONE_NEWAGENT) returned
+EINVAL and every kthread fork was misread as requesting a new agent NS,
+hanging boot before the console came up (assay-agentns reproduces this).
 
-Signed-off-by: j0yen <jyen.tech@gmail.com>
+Creation now goes through prctl(PR_SET_AGENT_NS) (see patch 05 / the prctl
+dispatch). This patch only allocates a 64-bit clone3-only flag at
+0x400000000ULL — the next free value above CLONE_INTO_CGROUP — for the
+clone3(2) inheritance path. It is unreachable from unshare(2) and is NOT the
+creation mechanism. The legacy CLONE_* mask is byte-identical to mainline.
+
+Signed-off-by: Joe Yen <jyen.tech@gmail.com>
 ---
- include/uapi/linux/sched.h | 1 +
- 1 file changed, 1 insertion(+)
+ include/uapi/linux/sched.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
 --- a/include/uapi/linux/sched.h
 +++ b/include/uapi/linux/sched.h
-@@ -39,6 +39,7 @@
- #define CLONE_NEWNET		0x40000000	/* WAS: New network namespace (deprecated) */
- #define CLONE_IO		0x80000000	/* Clone io context */
-
-+#define CLONE_NEWAGENT		0x00000100	/* New agent namespace (wintermute vendor) */
+@@ -39,6 +39,8 @@
  /* Flags for the clone3() syscall. */
  #define CLONE_CLEAR_SIGHAND	0x100000000ULL /* Clear any signal handler set by the parent. */
  #define CLONE_INTO_CGROUP	0x200000000ULL /* Clone into a specific cgroup given the right permissions. */
++
++#define CLONE_NEWAGENT		0x400000000ULL	/* New agent namespace (wintermute vendor); clone3-only, NOT unshare-reachable. Userspace creates via prctl(PR_SET_AGENT_NS). */
+
+ /*
+  * cloning flags intersect with CSIGNAL so can be used with unshare and clone3

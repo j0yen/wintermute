@@ -75,6 +75,13 @@ pub(crate) enum Command {
         /// Overrides `DOCKET_ESCALATE_THRESHOLD` env var (default 3).
         #[arg(long)]
         escalate_threshold: Option<i64>,
+        /// Opaque fingerprint for ack auto-clear (M3).
+        ///
+        /// If the finding is currently acked with an `--until-change` fingerprint
+        /// and this value differs, the ack is automatically cleared so the finding
+        /// resurfaces.
+        #[arg(long)]
+        fingerprint: Option<String>,
     },
     /// List findings.
     List {
@@ -96,6 +103,11 @@ pub(crate) enum Command {
         /// Minimum severity to include.
         #[arg(long, value_enum)]
         severity: Option<SeverityFilter>,
+        /// Include acknowledged findings in the listing (shows them with an (acked) marker).
+        ///
+        /// By default, acked findings are hidden from open/escalated views.
+        #[arg(long)]
+        include_acked: bool,
     },
     /// Show a single finding's full record.
     Show {
@@ -113,10 +125,34 @@ pub(crate) enum Command {
         #[arg(long)]
         reason: Option<String>,
     },
+    /// Acknowledge a finding — marks it as triaged and hides it from default views.
+    ///
+    /// The finding remains fully tracked; `--until-change FINGERPRINT` or
+    /// `--runs N` will auto-clear the ack when the condition changes.
+    Ack {
+        /// Finding key.
+        key: String,
+        /// Optional human reason for acknowledging.
+        #[arg(long)]
+        reason: Option<String>,
+        /// Fingerprint to watch; the ack is cleared if a future `report
+        /// --fingerprint FP` supplies a different value.
+        #[arg(long)]
+        until_change: Option<String>,
+        /// Clear ack after this many additional runs (stored as run-id).
+        #[arg(long)]
+        runs: Option<String>,
+    },
+    /// Clear an acknowledgement — finding resurfaces immediately.
+    Unack {
+        /// Finding key.
+        key: String,
+    },
     /// Digest: compact rollup of open/escalated findings for banners and health checks.
     ///
     /// Text output (default): ≤3-line banner safe to inline in `SessionStart`.
     /// JSON output: `wm.health.*`-compatible envelope (matches companion-degrade shape).
+    /// Acked findings are excluded from counts by default; use `--include-acked` to see all.
     Digest {
         /// Output format.
         #[arg(long, value_enum, default_value = "text")]
@@ -124,6 +160,12 @@ pub(crate) enum Command {
         /// Minimum severity to include (default: include all).
         #[arg(long, value_enum)]
         severity: Option<SeverityFilter>,
+        /// Include acknowledged findings in counts and listing.
+        ///
+        /// With this flag, acked findings are counted like open/escalated ones,
+        /// and the output is byte-identical to the pre-abide digest for the same data.
+        #[arg(long)]
+        include_acked: bool,
     },
     /// Sweep: auto-resolve stale open/escalated findings not seen in recent runs.
     ///
@@ -138,6 +180,29 @@ pub(crate) enum Command {
         /// Overrides `DOCKET_STALE_AFTER` env var (default 3).
         #[arg(long)]
         stale_after: Option<i64>,
+    },
+    /// List probe-suspect findings: open findings with high report+run counts that
+    /// were never resolved.  Useful for identifying probes that may be reporting
+    /// phantom issues or need logic review.
+    ///
+    /// Excludes acked findings by default; use `--include-acked` to see them.
+    /// Excludes resolved findings (always).
+    Stuck {
+        /// Minimum report_count threshold (default 6).
+        #[arg(long, default_value = "6")]
+        min_reports: i64,
+        /// Minimum runs_seen threshold (default 5).
+        #[arg(long, default_value = "5")]
+        min_runs: i64,
+        /// Output format.
+        #[arg(long, value_enum, default_value = "text")]
+        format: Format,
+        /// Filter to findings whose key contains this substring.
+        #[arg(long)]
+        key: Option<String>,
+        /// Include acknowledged findings (excluded by default).
+        #[arg(long)]
+        include_acked: bool,
     },
 }
 
@@ -172,12 +237,22 @@ pub(crate) fn run(cli: Cli) -> Result<()> {
             severity,
             evidence,
             escalate_threshold,
+            fingerprint,
         } => {
             let threshold = escalate_threshold.unwrap_or_else(escalate_threshold_default);
             let conn = db::open()?;
             // Pass None for the legacy single-line evidence column; typed refs go
             // into the `evidence` table via insert_evidence.
-            db::report(&conn, &run, &key, &title, &severity, None, threshold)?;
+            db::report(
+                &conn,
+                &run,
+                &key,
+                &title,
+                &severity,
+                None,
+                threshold,
+                fingerprint.as_deref(),
+            )?;
             // Append typed evidence refs (M2) — lenient, never fails for bad syntax.
             if !evidence.is_empty() {
                 db::insert_evidence(&conn, &key, &run, &evidence)?;
@@ -190,6 +265,7 @@ pub(crate) fn run(cli: Cli) -> Result<()> {
             all,
             format,
             severity,
+            include_acked,
         } => {
             let status_filter = if resolved {
                 "resolved"
@@ -203,14 +279,19 @@ pub(crate) fn run(cli: Cli) -> Result<()> {
             };
             let min_sev = severity.as_ref().map(SeverityFilter::rank);
             let conn = db::open()?;
-            let findings = db::list(&conn, status_filter, min_sev)?;
+            let findings = db::list(&conn, status_filter, min_sev, include_acked)?;
             match format {
                 Format::Json => {
                     println!("{}", serde_json::to_string_pretty(&findings)?);
                 }
                 Format::Text => {
                     for f in &findings {
-                        println!("{}", f.format_text());
+                        let text = f.format_text();
+                        if f.is_acked() {
+                            println!("{text} (acked)");
+                        } else {
+                            println!("{text}");
+                        }
                     }
                 }
             }
@@ -231,11 +312,44 @@ pub(crate) fn run(cli: Cli) -> Result<()> {
             let conn = db::open()?;
             db::resolve(&conn, &key, reason.as_deref())?;
         }
-        Command::Digest { format, severity } => {
+        Command::Ack {
+            key,
+            reason,
+            until_change,
+            runs: _runs,
+        } => {
+            let conn = db::open()?;
+            db::ack(&conn, &key, reason.as_deref(), until_change.as_deref(), None)?;
+            eprintln!("docket: acked '{key}'");
+        }
+        Command::Unack { key } => {
+            let conn = db::open()?;
+            let was_acked = db::unack(&conn, &key)?;
+            if was_acked {
+                eprintln!("docket: unacked '{key}'");
+            } else {
+                eprintln!("docket: '{key}' was not acked (no-op)");
+            }
+        }
+        Command::Digest {
+            format,
+            severity,
+            include_acked,
+        } => {
             let min_sev = severity.as_ref().map(SeverityFilter::rank);
             let conn = db::open()?;
-            let findings = db::list_active(&conn, min_sev)?;
-            let env = digest::compute(&findings);
+            let env = if include_acked {
+                // --include-acked: pass all findings as non-acked; acked slice empty.
+                let findings = db::list_active(&conn, min_sev, true)?;
+                digest::compute(&findings, &[])
+            } else {
+                // Default: split into acked and non-acked.
+                let non_acked = db::list_active(&conn, min_sev, false)?;
+                // Fetch acked findings for the tally (separate query).
+                let all_active = db::list_active(&conn, min_sev, true)?;
+                let acked: Vec<_> = all_active.into_iter().filter(crate::model::Finding::is_acked).collect();
+                digest::compute(&non_acked, &acked)
+            };
             match format {
                 Format::Json => {
                     println!("{}", serde_json::to_string_pretty(&env)?);
@@ -253,6 +367,56 @@ pub(crate) fn run(cli: Cli) -> Result<()> {
                 "sweep complete: resolved={} streak_reset={}",
                 result.resolved, result.streak_reset
             );
+        }
+        Command::Stuck {
+            min_reports,
+            min_runs,
+            format,
+            key,
+            include_acked,
+        } => {
+            let conn = db::open()?;
+            let findings = db::stuck(&conn, min_reports, min_runs, key.as_deref(), include_acked)?;
+            if findings.is_empty() {
+                println!("no probe-suspect findings");
+                return Ok(());
+            }
+            match format {
+                Format::Json => {
+                    let rows: Vec<serde_json::Value> = findings
+                        .iter()
+                        .map(|f| {
+                            let reason = format!(
+                                "reported {report_count}\u{00d7} over {runs_seen} runs, \
+                                 never resolved \u{2014} verify the probe matches reality \
+                                 before re-parking",
+                                report_count = f.report_count,
+                                runs_seen = f.runs_seen,
+                            );
+                            serde_json::json!({
+                                "key": f.key,
+                                "title": f.title,
+                                "report_count": f.report_count,
+                                "runs_seen": f.runs_seen,
+                                "consecutive_runs": f.consecutive_runs,
+                                "first_seen": f.first_seen,
+                                "last_seen": f.last_seen,
+                                "suspect_reason": reason,
+                            })
+                        })
+                        .collect();
+                    println!("{}", serde_json::to_string_pretty(&rows)?);
+                }
+                Format::Text => {
+                    for f in &findings {
+                        let ack_marker = if f.is_acked() { " (acked)" } else { "" };
+                        println!(
+                            "[suspect] {} — {} reports / {} runs{ack_marker}\n  {}",
+                            f.key, f.report_count, f.runs_seen, f.title,
+                        );
+                    }
+                }
+            }
         }
     }
     Ok(())

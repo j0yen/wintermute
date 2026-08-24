@@ -1,0 +1,79 @@
+From: Joe Yen <jyen.tech@gmail.com>
+Date: 2026-06-09
+Subject: [PATCH 11/10] agentns: create-and-enter via prctl(PR_SET_AGENT_NS)
+
+The legacy clone-flag creation path is dead: the 32-bit clone/unshare flag
+space is exhausted, so unshare(2) cannot ever reach a CLONE_NEWAGENT bit
+(0x100 aliases CLONE_VM; the replacement 0x400000000ULL is clone3-only).
+assay-agentns proves this on the booted kernel: unshare(CLONE_NEWAGENT)
+returns EINVAL and /proc/self/agent_session is all zeros.
+
+Route agent-namespace creation through a dedicated prctl op instead:
+
+  - PR_SET_AGENT_NS (PR_AGENT_BASE + 7): create a fresh agent_ns (fresh
+    128-bit session id, zeroed counters, cleared intent tag) and install it
+    on the calling task's nsproxy. Reachable from plain userspace; no clone
+    flag involved.
+
+  - agent_ns_reproxy_current() (kernel/nsproxy.c): builds a new nsproxy via
+    the existing static create_new_namespaces(CLONE_NEWAGENT, ...) — which
+    takes a reference to every inherited namespace and forks only the
+    agent_ns (copy_agent_ns enforces CAP_SYS_ADMIN) — then attaches it with
+    switch_task_namespaces(). Lives in nsproxy.c because it needs the static
+    nsproxy allocator.
+
+ns_common identity now uses AGENT_NS_TYPE (== the clone3-only flag value)
+rather than the old 0x100 alias.
+
+The canonical applier is scripts/apply-agentns.py (idempotent anchor-based
+inline edits); this .patch is the human-readable description of the same
+change. apply-agentns.py --check fails if a stale 0x100 CLONE_NEWAGENT
+creation #define reappears.
+
+Signed-off-by: Joe Yen <jyen.tech@gmail.com>
+---
+ include/uapi/linux/agent_namespaces.h |  1 +
+ kernel/agent_namespaces.c             | 11 +++++++++++
+ kernel/nsproxy.c                      | 16 ++++++++++++++++
+ 3 files changed, 28 insertions(+)
+
+--- a/include/uapi/linux/agent_namespaces.h
++++ b/include/uapi/linux/agent_namespaces.h
+@@ -27,6 +27,7 @@
+ #define PR_GET_AGENT_COUNTERS		(PR_AGENT_BASE + 5)
+ #define PR_GET_AGENT_PARENT_ID		(PR_AGENT_BASE + 6)
++#define PR_SET_AGENT_NS			(PR_AGENT_BASE + 7)
+
+--- a/kernel/agent_namespaces.c
++++ b/kernel/agent_namespaces.c
+@@ -448,6 +448,17 @@ long agent_ns_prctl(struct task_struct *me, int option,
+ 	switch (option) {
++	case PR_SET_AGENT_NS:
++		/*
++		 * Create-and-enter a fresh agent namespace for the calling
++		 * task. Unshare-equivalent; no clone flag involved.
++		 */
++		return agent_ns_reproxy_current();
+ 	case PR_GET_AGENT_SESSION_ID: {
+
+--- a/kernel/nsproxy.c
++++ b/kernel/nsproxy.c
+@@ -257,6 +257,22 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
++#ifdef CONFIG_AGENT_NS
++int agent_ns_reproxy_current(void)
++{
++	struct task_struct *tsk = current;
++	struct nsproxy *new_nsp;
++
++	new_nsp = create_new_namespaces(CLONE_NEWAGENT, tsk,
++					current_user_ns(), tsk->fs);
++	if (IS_ERR(new_nsp))
++		return PTR_ERR(new_nsp);
++
++	switch_task_namespaces(tsk, new_nsp);
++	return 0;
++}
++EXPORT_SYMBOL_GPL(agent_ns_reproxy_current);
++#endif
++
+ void exit_nsproxy_namespaces(struct task_struct *p)

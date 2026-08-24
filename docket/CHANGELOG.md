@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.5.1 — 2026-06-13
+
+Adds `docket stuck` subcommand (PRD-litmus-stuck-detector).
+
+New `stuck` command lists open findings where `report_count >= N` (default 6)
+AND `runs_seen >= M` (default 5) AND `resolved_at IS NULL`. These are
+"probe-suspect" findings — probes that persistently fire without ever resolving,
+suggesting the probe logic may not match reality.
+
+Flags: `--min-reports N`, `--min-runs N`, `--format text|json`, `--key <substr>`
+filter, `--include-acked`. Acked findings are excluded by default.
+
+JSON output includes `suspect_reason` field explaining why the finding is
+flagged. Text output prints a concise one-liner per finding. Empty result exits
+0 with "no probe-suspect findings". Pure read operation — no db writes.
+
+All 7 acceptance criteria covered by 7 new integration tests (67 total pass).
+
 ## v0.4.0 — 2026-05-30
 
 Adds typed, accumulated evidence trail for findings (PRD-docket-evidence).

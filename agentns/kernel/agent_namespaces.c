@@ -23,6 +23,7 @@
 #include <linux/err.h>
 #include <linux/jiffies.h>
 #include <linux/ktime.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/proc_ns.h>
 #include <linux/random.h>
@@ -151,7 +152,7 @@ static struct agent_namespace *create_agent_ns(struct user_namespace *user_ns,
 	 * tree-node init, and inum allocation in one shot (inum=0 means
 	 * "allocate a fresh one").
 	 */
-	err = __ns_common_init(&ns->ns, CLONE_NEWAGENT, &agentns_operations, 0);
+	err = __ns_common_init(&ns->ns, AGENT_NS_TYPE, &agentns_operations, 0);
 	if (err)
 		goto fail_inum;
 
@@ -446,6 +447,15 @@ long agent_ns_prctl(struct task_struct *me, int option,
 		return -EINVAL;
 
 	switch (option) {
+	case PR_SET_AGENT_NS:
+		/*
+		 * Create-and-enter a fresh agent namespace for the calling
+		 * task. This is the unshare-equivalent creation path — no
+		 * clone flag involved. arg2..arg5 are reserved (ignored).
+		 * Capability enforcement lives in copy_agent_ns(), reached
+		 * via agent_ns_reproxy_current() -> create_new_namespaces().
+		 */
+		return agent_ns_reproxy_current();
 	case PR_GET_AGENT_SESSION_ID: {
 		struct agent_session_id_uapi out;
 		BUILD_BUG_ON(sizeof(out) != AGENT_NS_ID_BYTES);
@@ -673,12 +683,16 @@ static struct ctl_table agent_ns_sysctls[] = {
 static int __init agent_ns_init(void)
 {
 	/*
-	 * Compile-time guard: CLONE_NEWAGENT must not alias any existing
-	 * upstream CLONE_* bit. An earlier version used 0x00000100 which
-	 * silently aliased CLONE_VM — every kthread fork was interpreted
-	 * as also requesting a new agent namespace, and copy_agent_ns ran
-	 * before agent_ns_cache existed (this initcall hadn't fired yet),
-	 * which hung the kernel before the framebuffer console came up.
+	 * Compile-time guard: the clone3-only CLONE_NEWAGENT flag must not
+	 * alias any existing upstream CLONE_* bit. An earlier version used
+	 * 0x00000100 which silently aliased CLONE_VM — every kthread fork was
+	 * interpreted as also requesting a new agent namespace, and
+	 * copy_agent_ns ran before agent_ns_cache existed (this initcall
+	 * hadn't fired yet), which hung the kernel before the framebuffer
+	 * console came up. The flag now lives at 0x400000000ULL (clone3-only,
+	 * unreachable from unshare(2)); userspace creation goes through
+	 * prctl(PR_SET_AGENT_NS) instead. This guard stays as a regression
+	 * tripwire against ever re-aliasing a low clone bit.
 	 */
 	BUILD_BUG_ON(CLONE_NEWAGENT & (CSIGNAL | CLONE_VM | CLONE_FS |
 		CLONE_FILES | CLONE_SIGHAND | CLONE_PIDFD | CLONE_PTRACE |
@@ -698,7 +712,7 @@ static int __init agent_ns_init(void)
 	agent_ns_link_cache = KMEM_CACHE(agent_ns_link, SLAB_PANIC);
 
 	/* set init_agent_ns inum so /proc/$PID/ns/agent for init tasks resolves */
-	if (__ns_common_init(&init_agent_ns.ns, CLONE_NEWAGENT,
+	if (__ns_common_init(&init_agent_ns.ns, AGENT_NS_TYPE,
 			     &agentns_operations, 0))
 		pr_warn("agent_ns: failed to init init NS ns_common\n");
 	init_agent_ns.counters = alloc_percpu(struct agent_ns_counters_pcp);

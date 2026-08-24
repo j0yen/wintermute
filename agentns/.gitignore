@@ -11,5 +11,7 @@ modules.order
 
 # compiled test binaries (sources are tracked)
 tests/test_unshare
+tests/test_prctl_ns
 tests/unshare-helper
 userspace/agent-wrap
+userspace/agentns-unshare
