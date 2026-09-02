@@ -36,11 +36,6 @@
           {
             "type": "command",
             "command": "/home/jsy/.claude/scripts/agorabus-session-start.sh"
-          },
-          {
-            "type": "command",
-            "command": "firefox --new-tab 'https://www.youtube.com/watch?v=KOkChCapGms' >/dev/null 2>&1",
-            "async": true
           }
         ]
       },
