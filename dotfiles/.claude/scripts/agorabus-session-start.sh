@@ -186,6 +186,11 @@ fi
 
 # ── Phase: worker_attach ─────────────────────────────────────────────────
 
+# Advertise a minimal default identity and working path. Task-level detail is
+# published separately as agent.activity metadata, never inferred from prompts.
+"$agorabus" intent set --session-id "$sid" --skill "claude" --paths "$cwd" \
+    >/dev/null 2>&1 || true
+
 # Spawn the RPC worker so this session auto-replies to ping / self.describe /
 # methods.list / delegate.run on rpc.req.<sid>. Worker is idempotent.
 worker="$HOME/.claude/scripts/agorabus-worker.sh"

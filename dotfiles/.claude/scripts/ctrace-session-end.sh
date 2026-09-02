@@ -12,6 +12,9 @@ scribe=/home/jsy/.local/bin/scribe
 docket=/home/jsy/.local/bin/docket
 err="$cache/claude-stop.err"
 
+# ctrace not installed on this box — nothing to stop or render.
+[ -x "$ctrace" ] || exit 0
+
 # ── Resolve log path ──────────────────────────────────────────────────────────
 log=""
 

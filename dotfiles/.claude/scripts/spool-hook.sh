@@ -13,7 +13,7 @@ mode="${1:-}"
 [[ -z "$mode" ]] && exit 0
 
 SPOOL_BIN=/home/jsy/.local/bin/spool
-JQ=/usr/sbin/jq
+JQ=$(command -v jq || echo /usr/bin/jq)
 
 [[ -x "$SPOOL_BIN" ]] || exit 0
 [[ -x "$JQ" ]] || exit 0

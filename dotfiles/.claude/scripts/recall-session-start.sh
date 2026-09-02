@@ -24,7 +24,7 @@ set -uo pipefail
 RECALL_BIN="${RECALL_BIN:-$HOME/.local/bin/recall}"
 [ -x "$RECALL_BIN" ] || exit 0
 
-JQ="${JQ:-/usr/sbin/jq}"
+JQ="${JQ:-$(command -v jq || echo /usr/bin/jq)}"
 sid=""
 if [ -x "$JQ" ] && [ ! -t 0 ]; then
     raw="$(cat - 2>/dev/null || true)"
