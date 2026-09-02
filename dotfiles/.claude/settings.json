@@ -190,6 +190,16 @@
             "async": true
           }
         ]
+      },
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit|Agent|Skill|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/jsy/.claude/scripts/ousia-guard-pretool.sh",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [

@@ -15,13 +15,16 @@ and personal scratch CLIs under `~/.local/bin/`; intentionally narrow scope
 │       ├── ctrace-session-end.sh      # eBPF session tracer (stop)
 │       ├── summarize-ctrace-session.sh
 │       ├── recall-session-start.sh    # SessionStart hook — emit relevant memories
-│       └── scratch-tools-start.sh     # SessionStart hook — surface stack/letter at session top
+│       ├── scratch-tools-start.sh     # SessionStart hook — surface stack/letter at session top
+│       └── ousia-guard-pretool.sh     # PreToolUse hook — ousia-guard ethical gate (allow/ask/deny)
 ├── .local/
-│   └── bin/                     # personal scratch CLIs (symlinked into ~/.local/bin/)
-│       ├── napkin               # within-session scratchpad (append-only)
-│       ├── stack                # LIFO of pending intentions across sessions
-│       ├── bookmark             # file:line markers; resume where you stopped
-│       └── letter               # letters from past-Claude to future-Claude
+│   ├── bin/                     # personal scratch CLIs (symlinked into ~/.local/bin/)
+│   │   ├── napkin               # within-session scratchpad (append-only)
+│   │   ├── stack                # LIFO of pending intentions across sessions
+│   │   ├── bookmark             # file:line markers; resume where you stopped
+│   │   └── letter               # letters from past-Claude to future-Claude
+│   └── share/ousia/
+│       └── participants.json    # ousia-guard operator registry (regex → participant/edge rules)
 ├── install.sh                   # symlink installer with backups
 └── README.md
 ```
