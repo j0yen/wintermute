@@ -21,6 +21,9 @@ sessions="$cache/sessions"
 marker="$cache/claude-owns.json"
 err="$cache/claude-start.err"
 
+# ctrace not installed on this box — nothing to start.
+[ -x "$ctrace" ] || exit 0
+
 mkdir -p "$sessions" 2>/dev/null || exit 0
 
 # Reap orphaned tracers from prior SIGKILL'd sessions before starting a new one.
@@ -73,7 +76,9 @@ fi
 iso=$(date +%Y%m%dT%H%M%S)
 log="$sessions/claude-$iso.ndjson"
 
-if "$ctrace" doctor --fix --root "$root" --log "$log" >/dev/null 2>"$err"; then
+# sudo -n: ctrace is NOPASSWD (90-jsy-selfreview) and its cache files are root-owned
+# after any sudo start; an unprivileged run dies on tracer.err (2026-08-25).
+if sudo -n "$ctrace" doctor --fix --root "$root" --log "$log" >/dev/null 2>"$err"; then
     printf '{"claude_pid":%s,"started_at":"%s","log":"%s"}\n' \
         "$root" "$iso" "$log" > "$marker"
 fi
