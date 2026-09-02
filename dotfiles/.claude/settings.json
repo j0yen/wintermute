@@ -192,7 +192,7 @@
         ]
       },
       {
-        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit|Agent|Skill|mcp__.*",
+        "matcher": "Bash|Read|Grep|Write|Edit|MultiEdit|NotebookEdit|Agent|Skill|mcp__.*",
         "hooks": [
           {
             "type": "command",
