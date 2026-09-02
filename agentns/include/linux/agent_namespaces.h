@@ -16,10 +16,20 @@
 #include <linux/spinlock.h>
 #include <linux/uidgid.h>
 #include <linux/types.h>
+#include <uapi/linux/sched.h>	/* CLONE_NEWAGENT (clone3-only 0x400000000ULL) */
 
 #define AGENT_NS_ID_BYTES		16   /* 128-bit opaque session id */
 #define AGENT_NS_INTENT_MAX		63   /* nul-terminated, fits in 64-byte cacheline */
 #define AGENT_NS_DEFAULT_LIFETIME_S	86400 /* 24h reaper default */
+
+/*
+ * ns_type tag for __ns_common_init(). This is the value stamped into
+ * ns_common.ns_type; it is NOT reachable as an unshare(2) clone flag. We use
+ * the 64-bit clone3-only CLONE_NEWAGENT (0x400000000ULL) as the identity tag,
+ * named explicitly so the ns_common identity never depends on a low clone
+ * bit that could alias CLONE_VM.
+ */
+#define AGENT_NS_TYPE			CLONE_NEWAGENT
 
 struct agent_session_id {
 	u8 bytes[AGENT_NS_ID_BYTES];
@@ -115,6 +125,14 @@ void agent_ns_task_exit(struct task_struct *tsk);
 /* prctl PR_AGENT_* dispatcher */
 long agent_ns_prctl(struct task_struct *me, int option, unsigned long arg2,
 		    unsigned long arg3, unsigned long arg4, unsigned long arg5);
+
+/*
+ * Create a fresh agent_ns and install it on @current's nsproxy (the
+ * unshare-equivalent create-and-enter path used by PR_SET_AGENT_NS).
+ * Implemented in kernel/nsproxy.c because it needs the static nsproxy
+ * allocator / create_new_namespaces(). Returns 0 or a negative errno.
+ */
+int agent_ns_reproxy_current(void);
 
 /* reaper for the max-lifetime safety net */
 void agent_ns_reaper_kick(void);

@@ -1,5 +1,16 @@
 /*
- * test_unshare.c — basic CLONE_NEWAGENT acceptance test.
+ * test_unshare.c — LEGACY clone-flag path probe (documents EINVAL).
+ *
+ * The agent namespace is no longer created via unshare(CLONE_NEWAGENT): the
+ * 32-bit clone-flag space is exhausted and the replacement flag is
+ * clone3-only. The supported creation path is prctl(PR_SET_AGENT_NS); see
+ * test_prctl_ns.c, which is the real acceptance test.
+ *
+ * This file asserts the NEW contract for the legacy path: a fresh-NS create
+ * is performed via prctl (not unshare), and the per-NS prctl/counter surfaces
+ * still round-trip. The old "unshare(CLONE_NEWAGENT) must succeed and change
+ * the session id" expectation has been removed — that unshare is EINVAL-bound
+ * by design now.
  *
  * Requires the patched kernel running.  Compile with:
  *   gcc -O2 -Wall -o test_unshare test_unshare.c
@@ -7,7 +18,7 @@
  * Exit codes:
  *   0  pass
  *   1  fail (with diagnostic to stderr)
- *   77 skip (kernel does not support CLONE_NEWAGENT — treated as skip by autotest)
+ *   77 skip (kernel does not support agent NS — treated as skip by autotest)
  */
 #define _GNU_SOURCE
 #include <errno.h>
@@ -67,15 +78,25 @@ int main(void)
 		DIE("could not read parent agent_session");
 	printf("parent (init NS): session=%s\n", parent_id);
 
-	if (unshare_u64(CLONE_NEWAGENT) < 0) {
-		if (errno == ENOSYS) SKIP("unshare(CLONE_NEWAGENT) returned ENOSYS");
+	/*
+	 * Legacy-path contract: unshare(CLONE_NEWAGENT 0x100) MUST fail — that
+	 * bit aliases CLONE_VM. A success here would mean the old broken
+	 * creation path regressed back in. We then create the namespace the
+	 * supported way, via prctl(PR_SET_AGENT_NS).
+	 */
+	if (unshare_u64(0x100) == 0)
+		DIE("unshare(0x100) unexpectedly succeeded — clone-flag creation regressed");
+
+	if (prctl(PR_SET_AGENT_NS, 0, 0, 0, 0) < 0) {
+		if (errno == ENOSYS || errno == EINVAL)
+			SKIP("prctl(PR_SET_AGENT_NS) unsupported (errno=%d) — kernel not rebuilt?", errno);
 		if (errno == EPERM)
-			DIE("unshare(CLONE_NEWAGENT) returned EPERM — run as root or grant CAP_SYS_ADMIN");
-		DIE("unshare(CLONE_NEWAGENT) failed: %s", strerror(errno));
+			DIE("prctl(PR_SET_AGENT_NS) returned EPERM — run as root or grant CAP_SYS_ADMIN");
+		DIE("prctl(PR_SET_AGENT_NS) failed: %s", strerror(errno));
 	}
 
 	if (read_proc_id(getpid(), child_id, sizeof(child_id)) < 0)
-		DIE("could not read child agent_session after unshare");
+		DIE("could not read child agent_session after PR_SET_AGENT_NS");
 	printf("child  (new NS):  session=%s\n", child_id);
 
 	if (strcmp(parent_id, child_id) == 0)

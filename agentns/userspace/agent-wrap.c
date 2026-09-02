@@ -1,14 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * agent-wrap — launch a command inside a fresh CLONE_NEWAGENT.
+ * agent-wrap — DEPRECATED legacy clone-flag wrapper.
  *
- * Needs CAP_SYS_ADMIN. The intended deployment is file caps on the
- * installed binary:
- *     sudo setcap cap_sys_admin+ep /home/jsy/.local/bin/agent-wrap
+ * This launches a command via unshare(CLONE_NEWAGENT). That path CANNOT
+ * create an agent namespace: the 32-bit clone-flag space is exhausted, the
+ * old 0x00000100 value aliases CLONE_VM, and the replacement 0x400000000ULL
+ * flag is clone3-only (unreachable from unshare(2)). unshare therefore
+ * returns EINVAL/ENOSYS here.
  *
- * On a kernel without CLONE_NEWAGENT, the unshare returns ENOSYS;
- * we warn on stderr and exec the target anyway so the wrapper is
- * harmless to leave in place across kernel switches.
+ * Use agentns-unshare instead — it creates the namespace via
+ * prctl(PR_SET_AGENT_NS). This binary is retained only so anything still
+ * referencing it degrades gracefully (warn + exec in the current namespace).
  *
  * If $AGENT_INTENT is set and non-empty, it is passed through
  * prctl(PR_SET_AGENT_INTENT_TAG, ...) before exec.
@@ -24,6 +26,12 @@
 
 #include "../include/uapi/linux/agent_namespaces.h"
 
+/*
+ * NOTE: 0x00000100 aliases CLONE_VM — this fallback is intentionally the
+ * historical (broken) value to document why agent-wrap is deprecated. Do not
+ * rely on it; unshare() below is expected to fail. agentns-unshare is the
+ * supported tool.
+ */
 #ifndef CLONE_NEWAGENT
 #define CLONE_NEWAGENT 0x00000100
 #endif

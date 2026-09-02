@@ -148,12 +148,34 @@ pub struct Finding {
     pub escalated_at: Option<String>,
     /// Reason for escalation (cites threshold + SKILL.md §359), or null.
     pub escalation_reason: Option<String>,
+    /// `RFC3339` timestamp when acknowledged, or null (M3).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acknowledged_at: Option<String>,
+    /// Human reason for the ack, or null (M3).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ack_reason: Option<String>,
+    /// Fingerprint that will auto-clear the ack when changed, or null (M3).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ack_fingerprint: Option<String>,
+    /// Run-id threshold past which the ack auto-clears, or null (M3).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ack_until_run: Option<String>,
     /// Typed evidence trail (populated by `db::show`; empty for `db::list`).
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub evidence_trail: Vec<EvidenceRow>,
     /// Number of evidence rows for this finding (populated by `db::list`; 0 for `db::show`).
     #[serde(skip_serializing_if = "is_zero", default)]
     pub evidence_count: i64,
+}
+
+impl Finding {
+    /// Returns `true` if this finding has an active acknowledgement.
+    ///
+    /// An ack is active when `acknowledged_at` is `Some`.
+    #[must_use]
+    pub const fn is_acked(&self) -> bool {
+        self.acknowledged_at.is_some()
+    }
 }
 
 const fn is_zero(n: &i64) -> bool {
@@ -181,6 +203,24 @@ impl Finding {
             (Some(at), None) => format!("\n  escalated_at: {at}"),
             _ => String::new(),
         };
+        let ack_info = if self.is_acked() {
+            let at = self.acknowledged_at.as_deref().unwrap_or("");
+            let reason_part = self
+                .ack_reason
+                .as_ref()
+                .map_or_else(String::new, |r| format!("  reason: {r}\n"));
+            let fp_part = self
+                .ack_fingerprint
+                .as_ref()
+                .map_or_else(String::new, |fp| format!("  fingerprint: {fp}\n"));
+            let until_part = self
+                .ack_until_run
+                .as_ref()
+                .map_or_else(String::new, |u| format!("  until_run: {u}\n"));
+            format!("\n  acked:\n  acknowledged_at: {at}\n{reason_part}{fp_part}{until_part}")
+        } else {
+            String::new()
+        };
 
         // Legacy single-line evidence column (shown only if no structured trail).
         let legacy_evidence = if self.evidence_trail.is_empty() {
@@ -207,7 +247,7 @@ impl Finding {
         };
 
         format!(
-            "[{status}] {key} ({severity})\n  title: {title}\n  first_seen: {first_seen}\n  last_seen: {last_seen}\n  first_run: {first_run}\n  last_run: {last_run}\n  runs_seen: {runs_seen}  consecutive_runs: {consecutive_runs}  report_count: {report_count}{resolved_info}{escalation_info}{legacy_evidence}{evidence_section}",
+            "[{status}] {key} ({severity})\n  title: {title}\n  first_seen: {first_seen}\n  last_seen: {last_seen}\n  first_run: {first_run}\n  last_run: {last_run}\n  runs_seen: {runs_seen}  consecutive_runs: {consecutive_runs}  report_count: {report_count}{resolved_info}{escalation_info}{ack_info}{legacy_evidence}{evidence_section}",
             status = self.status,
             key = self.key,
             severity = self.severity,

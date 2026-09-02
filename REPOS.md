@@ -78,6 +78,12 @@ clones, builds, and wires up everything on a fresh machine.
 | [recall-memory-linter](https://github.com/j0yen/recall-memory-linter) | `recall-lint` | Style + structure linter for individual memory files. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/recall-memory-linter/main/install.sh \| bash`. |
 | [memory-reliquary](https://github.com/j0yen/memory-reliquary) | — | Annual book-of-memories renderer; pulls from recall, lays out a printable artifact. One-liner install: `curl -fsSL https://raw.githubusercontent.com/j0yen/memory-reliquary/main/install.sh \| bash`. |
 
+## Wiki / vault
+
+| Repo | Binary | What it does |
+|---|---|---|
+| [summa](https://github.com/j0yen/summa) | `summa` | CLI mechanics layer for an LLM-maintained wiki on Obsidian vaults: `ingest` (PDF/URL/MD → JSON stub), `index` (regenerate index.md between anchors), `log` (append-only timeline), `links` (orphan/dangling/malformed wikilink graph), `page` (mint entity/source-summary/answer pages). The `/summa` skill calls these for mechanics and adds LLM synthesis on top. |
+
 ## Session / context
 
 | Repo | Binary | What it does |

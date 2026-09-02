@@ -67,6 +67,7 @@ fn db_path() -> Result<PathBuf> {
 ///   `SQLite` < 3.37 (which lacks IF NOT EXISTS on ADD COLUMN).
 /// Migration M2 (docket-evidence): `evidence` append-only table for typed
 ///   evidence refs keyed to findings.
+/// Migration M3 (abide-ack-state): four nullable ack columns on `findings`.
 fn migrate(conn: &Connection) -> Result<()> {
     // M0: core findings table.
     conn.execute_batch(
@@ -113,6 +114,12 @@ fn migrate(conn: &Connection) -> Result<()> {
             seen_at TEXT NOT NULL
         );",
     )?;
+
+    // M3: ack columns — add if not present (abide-ack-state).
+    add_column_if_missing(conn, "findings", "acknowledged_at", "TEXT")?;
+    add_column_if_missing(conn, "findings", "ack_reason", "TEXT")?;
+    add_column_if_missing(conn, "findings", "ack_fingerprint", "TEXT")?;
+    add_column_if_missing(conn, "findings", "ack_until_run", "TEXT")?;
 
     Ok(())
 }
@@ -218,6 +225,9 @@ pub fn count_evidence(conn: &Connection, key: &str) -> Result<i64> {
 /// - If resolved and reported again: reopens with streak reset to 1.
 /// - After streak update: if `consecutive_runs >= escalate_threshold` and
 ///   status is `open`, transitions to `escalated`.
+/// - If currently acked: auto-clears the ack when the incoming `fingerprint`
+///   differs from `ack_fingerprint` (or when the current `run_id` sequence
+///   is past `ack_until_run`).
 ///
 /// Also records the `run_id` in the `runs` ledger (idempotent).
 ///
@@ -233,6 +243,7 @@ pub fn report(
     severity: &str,
     evidence: Option<&str>,
     escalate_threshold: i64,
+    fingerprint: Option<&str>,
 ) -> Result<()> {
     let now = Utc::now().to_rfc3339();
     let sev = severity.to_owned();
@@ -262,9 +273,14 @@ pub fn report(
             )?;
         }
 
-        let existing: Option<(String, String, i64, i64, i64)> = conn
+        // Fetch existing row including ack state (M3).
+        // acknowledged_at / ack_fingerprint / ack_until_run are at columns 16/18/19
+        // when the M3 migration has run; use unwrap_or(None) for backward compat.
+        #[allow(clippy::type_complexity)]
+        let existing: Option<(String, String, i64, i64, i64, Option<String>, Option<String>, Option<String>)> = conn
             .query_row(
-                "SELECT status, last_run, runs_seen, consecutive_runs, report_count
+                "SELECT status, last_run, runs_seen, consecutive_runs, report_count,
+                        acknowledged_at, ack_fingerprint, ack_until_run
                  FROM findings WHERE key = ?1",
                 params![key],
                 |row| {
@@ -274,6 +290,9 @@ pub fn report(
                         row.get::<_, i64>(2)?,
                         row.get::<_, i64>(3)?,
                         row.get::<_, i64>(4)?,
+                        row.get::<_, Option<String>>(5).unwrap_or(None),
+                        row.get::<_, Option<String>>(6).unwrap_or(None),
+                        row.get::<_, Option<String>>(7).unwrap_or(None),
                     ))
                 },
             )
@@ -296,7 +315,7 @@ pub fn report(
                     ],
                 )?;
             }
-            Some((status, last_run, runs_seen, consecutive_runs, _report_count)) => {
+            Some((status, last_run, runs_seen, consecutive_runs, _report_count, ack_at, stored_fp, until_run)) => {
                 if status == "resolved" {
                     // Reopen: reset streak to 1, clear resolved fields.
                     let new_runs = if run_id == last_run {
@@ -355,6 +374,26 @@ pub fn report(
                             evidence, esc_at, esc_reason, key
                         ],
                     )?;
+                }
+
+                // M3: auto-clear ack if fingerprint changed or until_run crossed.
+                if ack_at.is_some() {
+                    let should_clear = should_clear_ack(
+                        conn,
+                        run_id,
+                        fingerprint,
+                        stored_fp.as_deref(),
+                        until_run.as_deref(),
+                    )?;
+                    if should_clear {
+                        conn.execute(
+                            "UPDATE findings
+                             SET acknowledged_at = NULL, ack_reason = NULL,
+                                 ack_fingerprint = NULL, ack_until_run = NULL
+                             WHERE key = ?1",
+                            params![key],
+                        )?;
+                    }
                 }
             }
         }
@@ -544,6 +583,9 @@ pub struct SweepResult {
 ///
 /// `status_filter`: `"open"`, `"resolved"`, `"escalated"`, or `"all"`.
 /// `min_severity`: optional minimum severity rank (info=0, warn=1, crit=2).
+/// `include_acked`: when `false` (default), acked findings are excluded from
+///   the `open` and `escalated` status results.  When `true`, all findings
+///   matching the status filter are returned (restoring pre-abide behaviour).
 ///
 /// Populates `evidence_count` for each finding (cheap aggregate); the full
 /// `evidence_trail` is NOT populated here — use `show` for that.
@@ -555,6 +597,7 @@ pub fn list(
     conn: &Connection,
     status_filter: &str,
     min_severity: Option<u8>,
+    include_acked: bool,
 ) -> Result<Vec<Finding>> {
     let sql = match status_filter {
         "open" => "SELECT * FROM findings WHERE status = 'open' ORDER BY last_seen DESC",
@@ -572,10 +615,13 @@ pub fn list(
     let mut result: Vec<Finding> = findings
         .into_iter()
         .filter(|f| {
-            min_severity.is_none_or(|min| {
+            // Exclude acked findings from non-resolved views unless include_acked.
+            let acked_ok = include_acked || !f.is_acked();
+            let sev_ok = min_severity.is_none_or(|min| {
                 Severity::from_str(&f.severity.to_string())
                     .is_some_and(|s| s.rank() >= min)
-            })
+            });
+            acked_ok && sev_ok
         })
         .collect();
 
@@ -606,6 +652,111 @@ pub fn show(conn: &Connection, key: &str) -> Result<Finding> {
     Ok(finding)
 }
 
+/// Determine whether an existing ack should be auto-cleared on this report.
+///
+/// - If `incoming_fp` is `Some` and `stored_fp` is `Some` and they differ → clear.
+/// - If `stored_fp` is `None` (carry-regardless) → never clear on fingerprint mismatch.
+/// - If `until_run` is set and the current run's sequence ≥ that run's sequence → clear.
+fn should_clear_ack(
+    conn: &Connection,
+    current_run_id: &str,
+    incoming_fp: Option<&str>,
+    stored_fp: Option<&str>,
+    until_run: Option<&str>,
+) -> Result<bool> {
+    // Fingerprint check.
+    if let (Some(incoming), Some(stored)) = (incoming_fp, stored_fp) {
+        if incoming != stored {
+            return Ok(true);
+        }
+    }
+
+    // ack_until_run crossing check.
+    if let Some(limit_run) = until_run {
+        let current_seq: Option<i64> = conn
+            .query_row(
+                "SELECT seq FROM runs WHERE run_id = ?1",
+                params![current_run_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let limit_seq: Option<i64> = conn
+            .query_row(
+                "SELECT seq FROM runs WHERE run_id = ?1",
+                params![limit_run],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if let (Some(cur), Some(lim)) = (current_seq, limit_seq) {
+            if cur >= lim {
+                return Ok(true);
+            }
+        }
+    }
+
+    Ok(false)
+}
+
+/// Acknowledge a finding.
+///
+/// Sets `acknowledged_at` to now (RFC3339), and optionally stores `reason`,
+/// `fingerprint`, and `until_run`. Re-acking updates `reason`/`fingerprint`/
+/// `until_run` without resetting `acknowledged_at` unless it was not set.
+///
+/// # Errors
+///
+/// Returns `DocketError::NotFound` if the key does not exist or is resolved.
+pub fn ack(
+    conn: &Connection,
+    key: &str,
+    reason: Option<&str>,
+    fingerprint: Option<&str>,
+    until_run: Option<&str>,
+) -> Result<()> {
+    // Verify key exists and is not resolved.
+    let finding = show(conn, key)?;
+    if finding.status == crate::model::Status::Resolved {
+        return Err(DocketError::NotFound(format!(
+            "{key} is already resolved — acking a resolved finding is meaningless"
+        )));
+    }
+
+    let now = Utc::now().to_rfc3339();
+    let ack_at = finding.acknowledged_at.unwrap_or(now);
+    conn.execute(
+        "UPDATE findings
+         SET acknowledged_at = ?1, ack_reason = ?2,
+             ack_fingerprint = ?3, ack_until_run = ?4
+         WHERE key = ?5",
+        params![ack_at, reason, fingerprint, until_run, key],
+    )?;
+    Ok(())
+}
+
+/// Clear the acknowledgement on a finding.
+///
+/// Clears all four ack columns; no other data is touched. If the finding was
+/// not acked, exits 0 with a note printed by the caller.
+///
+/// # Errors
+///
+/// Returns `DocketError::NotFound` if the key does not exist.
+pub fn unack(conn: &Connection, key: &str) -> Result<bool> {
+    // Verify key exists.
+    let finding = show(conn, key)?;
+    if !finding.is_acked() {
+        return Ok(false);
+    }
+    conn.execute(
+        "UPDATE findings
+         SET acknowledged_at = NULL, ack_reason = NULL,
+             ack_fingerprint = NULL, ack_until_run = NULL
+         WHERE key = ?1",
+        params![key],
+    )?;
+    Ok(true)
+}
+
 /// Resolve a finding.
 ///
 /// # Errors
@@ -623,13 +774,62 @@ pub fn resolve(conn: &Connection, key: &str, reason: Option<&str>) -> Result<()>
     Ok(())
 }
 
-/// List findings in `open` or `escalated` state, applying an optional minimum
-/// severity filter.  Used by `docket digest`.
+/// List probe-suspect findings: open (or escalated) findings whose
+/// `report_count >= min_reports` AND `runs_seen >= min_runs` AND
+/// `resolved_at IS NULL`.  Acked findings are excluded by default.
+///
+/// An optional `key_substr` filter restricts results to findings whose key
+/// contains the given substring (case-sensitive).
 ///
 /// # Errors
 ///
 /// Returns an error if the database query fails.
-pub fn list_active(conn: &Connection, min_severity: Option<u8>) -> Result<Vec<Finding>> {
+pub fn stuck(
+    conn: &Connection,
+    min_reports: i64,
+    min_runs: i64,
+    key_substr: Option<&str>,
+    include_acked: bool,
+) -> Result<Vec<Finding>> {
+    let mut stmt = conn.prepare(
+        "SELECT * FROM findings
+         WHERE resolved_at IS NULL
+           AND report_count >= ?1
+           AND runs_seen >= ?2
+         ORDER BY report_count DESC, runs_seen DESC",
+    )?;
+    let findings = stmt
+        .query_map(params![min_reports, min_runs], row_to_finding)?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+
+    let result: Vec<Finding> = findings
+        .into_iter()
+        .filter(|f| {
+            let acked_ok = include_acked || !f.is_acked();
+            let key_ok = key_substr
+                .map_or(true, |sub| f.key.contains(sub));
+            acked_ok && key_ok
+        })
+        .collect();
+
+    Ok(result)
+}
+
+/// List findings in `open` or `escalated` state, applying an optional minimum
+/// severity filter.  Used by `docket digest`.
+///
+/// When `include_acked` is `false` (default for `docket digest`), acked findings
+/// are excluded from the returned slice so they don't inflate counts.  Pass
+/// `true` to restore the full pre-abide list (e.g. `--include-acked`).
+///
+/// # Errors
+///
+/// Returns an error if the database query fails.
+pub fn list_active(
+    conn: &Connection,
+    min_severity: Option<u8>,
+    include_acked: bool,
+) -> Result<Vec<Finding>> {
     let mut stmt = conn.prepare(
         "SELECT * FROM findings WHERE status IN ('open', 'escalated') ORDER BY runs_seen DESC",
     )?;
@@ -640,10 +840,12 @@ pub fn list_active(conn: &Connection, min_severity: Option<u8>) -> Result<Vec<Fi
     Ok(findings
         .into_iter()
         .filter(|f| {
-            min_severity.is_none_or(|min| {
+            let acked_ok = include_acked || !f.is_acked();
+            let sev_ok = min_severity.is_none_or(|min| {
                 Severity::from_str(&f.severity.to_string())
                     .is_some_and(|s| s.rank() >= min)
-            })
+            });
+            acked_ok && sev_ok
         })
         .collect())
 }
@@ -664,11 +866,15 @@ fn row_to_finding(row: &rusqlite::Row<'_>) -> rusqlite::Result<Finding> {
     };
 
     // Columns 0..13 are the M0 schema.
-    // Columns 14..15 are the M1 escalate columns (may be absent in old DBs —
-    // rusqlite returns an error for out-of-range column indices, so we use
-    // `get_ref` which lets us return None when the value is NULL or absent).
+    // Columns 14..15 are the M1 escalate columns.
+    // Columns 16..19 are the M3 ack columns.
+    // All of these may be absent in old DBs — use unwrap_or(None) to default to None.
     let escalated_at: Option<String> = row.get(14).unwrap_or(None);
     let escalation_reason: Option<String> = row.get(15).unwrap_or(None);
+    let acknowledged_at: Option<String> = row.get(16).unwrap_or(None);
+    let ack_reason: Option<String> = row.get(17).unwrap_or(None);
+    let ack_fingerprint: Option<String> = row.get(18).unwrap_or(None);
+    let ack_until_run: Option<String> = row.get(19).unwrap_or(None);
 
     Ok(Finding {
         key: row.get(0)?,
@@ -687,6 +893,10 @@ fn row_to_finding(row: &rusqlite::Row<'_>) -> rusqlite::Result<Finding> {
         evidence: row.get(13)?,
         escalated_at,
         escalation_reason,
+        acknowledged_at,
+        ack_reason,
+        ack_fingerprint,
+        ack_until_run,
         // evidence_trail and evidence_count are populated by show/list after row mapping.
         evidence_trail: Vec::new(),
         evidence_count: 0,

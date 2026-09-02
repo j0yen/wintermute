@@ -1,9 +1,15 @@
 CC      := gcc
 CFLAGS  := -O2 -Wall -Wextra -std=gnu11 -I..
-BINS    := test_unshare unshare-helper
+BINS    := test_prctl_ns test_unshare unshare-helper
 
 all: $(BINS)
 
+# Primary creation-path test (prctl(PR_SET_AGENT_NS)).
+test_prctl_ns: test_prctl_ns.c ../include/uapi/linux/agent_namespaces.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+# Legacy clone-flag test. Retained to document that the unshare path is
+# EINVAL-bound; it SKIPs/early-exits rather than asserting creation works.
 test_unshare: test_unshare.c ../include/uapi/linux/agent_namespaces.h
 	$(CC) $(CFLAGS) -o $@ $<
 
@@ -24,7 +30,7 @@ unshare-helper.c:
 		'}' > $@
 
 check: all
-	@./test_unshare && \
+	@./test_prctl_ns && \
 	 ./test_inheritance.sh && \
 	 ./test_bpf_tracepoints.sh && \
 	 echo "ALL TESTS PASS"

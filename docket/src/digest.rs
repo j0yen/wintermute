@@ -64,18 +64,20 @@ impl std::fmt::Display for HealthStatus {
 /// Inner `detail` object inside the digest JSON envelope.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DigestDetail {
-    /// Count of open (non-escalated) findings passing the severity filter.
+    /// Count of open (non-escalated, non-acked) findings passing the severity filter.
     pub open: u64,
-    /// Count of escalated findings passing the severity filter.
+    /// Count of escalated (non-acked) findings passing the severity filter.
     pub escalated: u64,
-    /// Count of findings with `severity=crit` (any status in open+escalated).
+    /// Count of findings with `severity=crit` (any status in open+escalated, non-acked).
     pub crit: u64,
+    /// Count of acked findings passing the severity filter (never hidden).
+    pub acked: u64,
     /// Key of the finding with the highest `runs_seen` (or `consecutive_runs`
     /// as tiebreaker), or `null` when the store is empty.
     pub oldest_key: Option<String>,
     /// `runs_seen` of the oldest finding, or `0` when the store is empty.
     pub oldest_runs: u64,
-    /// Keys of all escalated findings, stable-sorted alphabetically.
+    /// Keys of all escalated (non-acked) findings, stable-sorted alphabetically.
     pub escalated_keys: Vec<String>,
 }
 
@@ -102,9 +104,29 @@ pub struct DigestEnvelope {
 /// Compute a [`DigestEnvelope`] from a slice of open-or-escalated findings.
 ///
 /// `findings` should already be filtered to status `open` or `escalated`
-/// and to the caller's minimum severity. The function does not re-filter.
+/// and to the caller's minimum severity. The function does not re-filter by
+/// severity.
+///
+/// Acked findings in `findings` are tallied into `detail.acked` but **do not**
+/// contribute to `open`, `escalated`, `crit`, or `HealthStatus`. This is the
+/// default mode when `db::list_active` is called with `include_acked=false`.
+///
+/// When the caller passes the full set (including acked findings), they should
+/// compute counts themselves or use the `--include-acked` path which passes
+/// findings to this function with acked ones present — in that case acked
+/// findings are treated exactly like open ones for counting purposes.
+///
+/// In practice this function handles both:
+/// - `include_acked=false` (acked already excluded by `db::list_active`) →
+///   `detail.acked = 0`, backward-compatible counts.
+/// - `include_acked=true` (all findings included) → acked findings show up in
+///   open/escalated counts (restoring pre-abide behaviour).
+///
+/// The `acked_findings` slice contains the acked subset (for the tally) when
+/// the caller wants to show the acked count even in the default view. Pass an
+/// empty slice for backward-compatible mode.
 #[must_use]
-pub fn compute(findings: &[Finding]) -> DigestEnvelope {
+pub fn compute(findings: &[Finding], acked_findings: &[Finding]) -> DigestEnvelope {
     let open_count = u64::try_from(
         findings.iter().filter(|f| f.status == Status::Open).count(),
     )
@@ -123,7 +145,9 @@ pub fn compute(findings: &[Finding]) -> DigestEnvelope {
     )
     .unwrap_or(u64::MAX);
 
-    // Oldest by runs_seen desc, consecutive_runs as tiebreaker.
+    let acked_count = u64::try_from(acked_findings.len()).unwrap_or(u64::MAX);
+
+    // Oldest by runs_seen desc, consecutive_runs as tiebreaker (non-acked only).
     let oldest = findings
         .iter()
         .max_by_key(|f| (f.runs_seen, f.consecutive_runs));
@@ -137,11 +161,12 @@ pub fn compute(findings: &[Finding]) -> DigestEnvelope {
         escalated_findings.iter().map(|f| f.key.clone()).collect();
     escalated_keys.sort();
 
-    // Check whether any *escalated* finding is crit.
+    // Check whether any *escalated* (non-acked) finding is crit.
     let escalated_crit = escalated_findings
         .iter()
         .any(|f| f.severity == Severity::Crit);
 
+    // HealthStatus ignores acked findings (abide-digest-quiet AC5).
     let status = if escalated_count == 0 {
         HealthStatus::Ok
     } else if escalated_crit {
@@ -150,13 +175,7 @@ pub fn compute(findings: &[Finding]) -> DigestEnvelope {
         HealthStatus::Degraded
     };
 
-    let summary = if open_count == 0 && escalated_count == 0 {
-        "0 open".to_owned()
-    } else if escalated_count == 0 {
-        format!("{open_count} open")
-    } else {
-        format!("{open_count} open, {escalated_count} escalated")
-    };
+    let summary = build_summary(open_count, escalated_count, acked_count);
 
     DigestEnvelope {
         component: "docket".to_owned(),
@@ -166,10 +185,33 @@ pub fn compute(findings: &[Finding]) -> DigestEnvelope {
             open: open_count,
             escalated: escalated_count,
             crit: crit_count,
+            acked: acked_count,
             oldest_key,
             oldest_runs,
             escalated_keys,
         },
+    }
+}
+
+/// Build the human-readable summary string.
+///
+/// - Zero acked: `"N open, M escalated"` (byte-identical to pre-abide format).
+/// - Non-zero acked: appends `", K acked"`.
+/// - Omits the escalated clause if zero (short form).
+#[must_use]
+pub fn build_summary(open: u64, escalated: u64, acked: u64) -> String {
+    let base = if open == 0 && escalated == 0 {
+        "0 open".to_owned()
+    } else if escalated == 0 {
+        format!("{open} open")
+    } else {
+        format!("{open} open, {escalated} escalated")
+    };
+
+    if acked == 0 {
+        base
+    } else {
+        format!("{base}, {acked} acked")
     }
 }
 
@@ -254,16 +296,27 @@ mod tests {
             evidence: None,
             escalated_at: None,
             escalation_reason: None,
+            // M3: ack fields
+            acknowledged_at: None,
+            ack_reason: None,
+            ack_fingerprint: None,
+            ack_until_run: None,
             // M2: no evidence trail in unit tests
             evidence_trail: Vec::new(),
             evidence_count: 0,
         }
     }
 
+    fn make_acked_finding(key: &str, severity: Severity, runs_seen: i64) -> Finding {
+        let mut f = make_finding(key, Status::Escalated, severity, runs_seen);
+        f.acknowledged_at = Some("2026-01-01T00:00:00Z".to_owned());
+        f
+    }
+
     // AC 1 — empty store → ok, zero counts
     #[test]
     fn empty_store_is_ok() {
-        let env = compute(&[]);
+        let env = compute(&[], &[]);
         assert_eq!(env.status, HealthStatus::Ok);
         assert_eq!(env.detail.open, 0);
         assert_eq!(env.detail.escalated, 0);
@@ -276,7 +329,7 @@ mod tests {
     // AC 1 — empty text output is a single clean line
     #[test]
     fn empty_store_text_single_line() {
-        let env = compute(&[]);
+        let env = compute(&[], &[]);
         let text = format_text(&env);
         assert_eq!(text, "docket: 0 open");
         assert_eq!(text.lines().count(), 1);
@@ -285,7 +338,7 @@ mod tests {
     // AC 1 — empty json has status=ok
     #[test]
     fn empty_store_json_status_ok() {
-        let env = compute(&[]);
+        let env = compute(&[], &[]);
         let v = serde_json::to_value(&env).unwrap();
         assert_eq!(v["status"], "ok");
         assert_eq!(v["detail"]["open"], 0);
@@ -303,7 +356,7 @@ mod tests {
             make_finding("e", Status::Escalated, Severity::Warn, 12),
         ];
         // Oldest: e with runs_seen=12
-        let env = compute(&findings);
+        let env = compute(&findings, &[]);
         let text = format_text(&env);
         // Must mention open count
         assert!(text.contains("4 open") || text.contains("open"), "open count: {text}");
@@ -317,7 +370,7 @@ mod tests {
 
         // Sort to ensure stable test
         findings.sort_by_key(|f| f.key.clone());
-        let env2 = compute(&findings);
+        let env2 = compute(&findings, &[]);
         let text2 = format_text(&env2);
         assert!(text2.lines().count() <= 3);
     }
@@ -328,7 +381,7 @@ mod tests {
         let env = compute(&[
             make_finding("k1", Status::Open, Severity::Warn, 2),
             make_finding("k2", Status::Escalated, Severity::Warn, 5),
-        ]);
+        ], &[]);
         let v = serde_json::to_value(&env).unwrap();
         // Top-level fields
         assert!(v.get("component").is_some(), "component field: {v}");
@@ -350,25 +403,25 @@ mod tests {
     // AC 4 — status mapping: open-only → ok; escalated → degraded; escalated crit → down
     #[test]
     fn status_mapping_open_only_is_ok() {
-        let env = compute(&[make_finding("k", Status::Open, Severity::Warn, 1)]);
+        let env = compute(&[make_finding("k", Status::Open, Severity::Warn, 1)], &[]);
         assert_eq!(env.status, HealthStatus::Ok);
     }
 
     #[test]
     fn status_mapping_any_escalated_is_degraded() {
-        let env = compute(&[make_finding("k", Status::Escalated, Severity::Warn, 3)]);
+        let env = compute(&[make_finding("k", Status::Escalated, Severity::Warn, 3)], &[]);
         assert_eq!(env.status, HealthStatus::Degraded);
     }
 
     #[test]
     fn status_mapping_escalated_crit_is_down() {
-        let env = compute(&[make_finding("k", Status::Escalated, Severity::Crit, 3)]);
+        let env = compute(&[make_finding("k", Status::Escalated, Severity::Crit, 3)], &[]);
         assert_eq!(env.status, HealthStatus::Down);
     }
 
     #[test]
     fn status_mapping_empty_is_ok() {
-        let env = compute(&[]);
+        let env = compute(&[], &[]);
         assert_eq!(env.status, HealthStatus::Ok);
     }
 
@@ -387,7 +440,7 @@ mod tests {
             .into_iter()
             .filter(|f| f.severity.rank() >= Severity::Warn.rank())
             .collect();
-        let env = compute(&filtered);
+        let env = compute(&filtered, &[]);
         assert_eq!(env.status, HealthStatus::Ok);
         assert_eq!(env.detail.open, 0);
     }
@@ -400,7 +453,7 @@ mod tests {
             make_finding("high", Status::Open, Severity::Warn, 10),
             make_finding("mid", Status::Open, Severity::Warn, 5),
         ];
-        let env = compute(&findings);
+        let env = compute(&findings, &[]);
         assert_eq!(env.detail.oldest_key.as_deref(), Some("high"));
         assert_eq!(env.detail.oldest_runs, 10);
     }
@@ -411,7 +464,7 @@ mod tests {
             make_finding("z", Status::Open, Severity::Warn, 3),
             make_finding("a", Status::Open, Severity::Warn, 7),
         ];
-        let env = compute(&findings);
+        let env = compute(&findings, &[]);
         // Both text and json use same envelope; oldest_key is "a" (runs_seen=7)
         assert_eq!(env.detail.oldest_key.as_deref(), Some("a"));
         let text = format_text(&env);
@@ -428,7 +481,7 @@ mod tests {
             make_finding("k1", Status::Escalated, Severity::Crit, 5),
             make_finding("k2", Status::Open, Severity::Warn, 2),
         ];
-        let env = compute(&findings);
+        let env = compute(&findings, &[]);
         let json_str = serde_json::to_string(&env).unwrap();
         let reparsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
         assert_eq!(reparsed["component"], "docket");
@@ -441,7 +494,7 @@ mod tests {
             make_finding("e2", Status::Escalated, Severity::Warn, 3),
             make_finding("o1", Status::Open, Severity::Info, 1),
         ];
-        let env = compute(&findings);
+        let env = compute(&findings, &[]);
         let text = format_text(&env);
         assert!(text.lines().count() <= 3, "text: {text:?}");
     }
@@ -450,7 +503,7 @@ mod tests {
     // (structural test: compute runs without error on an all-resolved store)
     #[test]
     fn compute_on_empty_slice_no_panic() {
-        let _ = compute(&[]);
+        let _ = compute(&[], &[]);
     }
 
     // AC 10 — graceful degradation when no escalated findings
@@ -460,7 +513,7 @@ mod tests {
             make_finding("k1", Status::Open, Severity::Warn, 2),
             make_finding("k2", Status::Open, Severity::Warn, 3),
         ];
-        let env = compute(&findings);
+        let env = compute(&findings, &[]);
         assert_eq!(env.status, HealthStatus::Ok);
         assert_eq!(env.detail.escalated, 0);
         assert!(env.detail.escalated_keys.is_empty());
@@ -469,13 +522,13 @@ mod tests {
     // Summary field tests
     #[test]
     fn summary_empty_is_zero_open() {
-        let env = compute(&[]);
+        let env = compute(&[], &[]);
         assert_eq!(env.summary, "0 open");
     }
 
     #[test]
     fn summary_open_only() {
-        let env = compute(&[make_finding("k", Status::Open, Severity::Warn, 1)]);
+        let env = compute(&[make_finding("k", Status::Open, Severity::Warn, 1)], &[]);
         assert_eq!(env.summary, "1 open");
     }
 
@@ -484,7 +537,101 @@ mod tests {
         let env = compute(&[
             make_finding("o", Status::Open, Severity::Warn, 1),
             make_finding("e", Status::Escalated, Severity::Warn, 3),
-        ]);
+        ], &[]);
         assert_eq!(env.summary, "1 open, 1 escalated");
+    }
+
+    // ── abide-digest-quiet AC tests ──────────────────────────────────────────
+
+    // AC 1 — acked findings excluded from non-acked slice, counted separately.
+    #[test]
+    fn acked_excluded_from_open_count() {
+        let open_f = make_finding("open1", Status::Open, Severity::Warn, 1);
+        let acked_f = make_acked_finding("acked1", Severity::Warn, 2);
+        let env = compute(&[open_f], &[acked_f]);
+        assert_eq!(env.detail.open, 1, "only 1 non-acked open");
+        assert_eq!(env.detail.acked, 1, "acked count is 1");
+        assert_eq!(env.detail.escalated, 0);
+    }
+
+    // AC 2 — acked escalated finding does not affect escalated count.
+    #[test]
+    fn acked_escalated_not_counted() {
+        let open_warn = make_finding("open-warn", Status::Open, Severity::Warn, 1);
+        let acked_esc = make_acked_finding("acked-esc", Severity::Warn, 3);
+        let env = compute(&[open_warn], &[acked_esc]);
+        assert_eq!(env.detail.open, 1);
+        assert_eq!(env.detail.escalated, 0, "acked escalated not in escalated count");
+        assert_eq!(env.detail.acked, 1);
+    }
+
+    // AC 3 — zero acked → summary byte-identical to pre-abide format.
+    #[test]
+    fn zero_acked_summary_unchanged() {
+        let f = make_finding("k", Status::Open, Severity::Warn, 1);
+        let env = compute(&[f], &[]);
+        assert_eq!(env.detail.acked, 0);
+        assert_eq!(env.summary, "1 open", "zero acked must not append ', 0 acked'");
+    }
+
+    // AC 4 — non-zero acked → summary includes acked clause.
+    #[test]
+    fn nonzero_acked_summary_includes_clause() {
+        let open_f = make_finding("open1", Status::Open, Severity::Warn, 1);
+        let acked_f = make_acked_finding("acked1", Severity::Warn, 2);
+        let env = compute(&[open_f], &[acked_f]);
+        assert!(
+            env.summary.contains("1 acked"),
+            "summary should contain '1 acked': {}",
+            env.summary
+        );
+    }
+
+    // AC 5 — HealthStatus::Ok when only escalated finding is acked.
+    #[test]
+    fn acked_only_escalated_is_ok() {
+        let acked_esc = make_acked_finding("acked-esc", Severity::Warn, 3);
+        let env = compute(&[], &[acked_esc]);
+        assert_eq!(
+            env.status,
+            HealthStatus::Ok,
+            "acked-only escalated should be ok, not degraded"
+        );
+    }
+
+    // AC 5 — un-acking (moving to non-acked slice) returns to Degraded.
+    #[test]
+    fn unacked_escalated_becomes_degraded() {
+        let esc = make_finding("esc", Status::Escalated, Severity::Warn, 3);
+        let env = compute(&[esc], &[]);
+        assert_eq!(env.status, HealthStatus::Degraded);
+    }
+
+    // AC 6 — include-acked mode: pass all findings as non-acked (empty acked slice).
+    #[test]
+    fn include_acked_restores_escalated_count() {
+        let acked_esc = make_acked_finding("acked-esc", Severity::Warn, 3);
+        // Simulate --include-acked: treat acked as regular findings (no acked slice)
+        let env = compute(&[acked_esc], &[]);
+        assert_eq!(
+            env.detail.escalated, 1,
+            "include-acked mode should count acked escalated findings"
+        );
+        assert_eq!(env.status, HealthStatus::Degraded);
+    }
+
+    // build_summary tests
+    #[test]
+    fn build_summary_zero_acked() {
+        assert_eq!(build_summary(1, 0, 0), "1 open");
+        assert_eq!(build_summary(1, 1, 0), "1 open, 1 escalated");
+        assert_eq!(build_summary(0, 0, 0), "0 open");
+    }
+
+    #[test]
+    fn build_summary_nonzero_acked() {
+        assert_eq!(build_summary(1, 0, 1), "1 open, 1 acked");
+        assert_eq!(build_summary(1, 1, 2), "1 open, 1 escalated, 2 acked");
+        assert_eq!(build_summary(0, 0, 3), "0 open, 3 acked");
     }
 }
