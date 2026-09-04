@@ -18,6 +18,7 @@ clones, builds, and wires up everything on a fresh machine.
 | [ac-judge](https://github.com/j0yen/ac-judge) | `ac-judge` | LLM-based semantic AC judge for the autobuilder pipeline: pairs each PRD acceptance criterion to its test, asks Claude Sonnet 4.6 whether the test actually exercises the AC's stated behavior, and emits a Stage-4 receipt (`ac-semantic-judge.json`). |
 | [cradle](https://github.com/j0yen/cradle) | `cradle` | Self-trained-model pipeline: harvest labeled data from Claude transcripts, orchestrate train (Python shellout) + bake (morsel shellout, receipt-7 accuracy gate) into Rust crates via [morsel](https://github.com/j0yen/morsel). v0.1.1 ships full harvest → train → bake pipeline end-to-end. |
 | [learning-db](https://github.com/j0yen/learning-db) (aka `database0`) | — | Educational, configurable DBMS — every subsystem (buffer pool, indexes, joins, MVCC) is a swappable implementation. Companion to CMU 15-445/645. TypeScript / pnpm workspace; see the repo README for install. |
+| [vibecode-kit](https://github.com/j0yen/vibecode-kit) | — | Portable Claude Code skill kit: `/dream` (PRD fleets from evidence), `/build` (Python-only reference router), `/vibeloop` (one orient→dream→build→digest cycle with multi-action and parallel build modes), plus `pybuilder`; installs via `install.sh`. Markdown + Python. |
 
 ## Agent runtime
 
