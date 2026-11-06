@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>synthorg — a simulated product organization and agent testing lab</title>
+<meta name="description" content="How synthorg uses agent roles, synthetic consumers, competing tool builders and recorded evidence to investigate what to build—and what simulation cannot prove.">
+<link rel="canonical" href="https://mcphost.dev/synthorg">
+<style>
+:root{
+  --accent:#3FB8F5; --ink:#0F1B33; --secondary:#2B4A80; --pale:#D9E9FA; --mist:#9EC3EA; --pink:#FFB3C1; --white:#FFFFFF;
+  --link:#1678AD; --muted:#4a5a78;
+  --head:'Fredoka',ui-rounded,'Nunito',system-ui,sans-serif;
+  --body:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:4rem}
+body{margin:0;background:var(--white);color:var(--ink);font:400 1.0625rem/1.7 var(--body);overflow-x:hidden}
+img{max-width:100%;height:auto}
+a{color:var(--link);text-decoration-color:var(--accent);text-underline-offset:.18em}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* top bar */
+.bar{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--pale)}
+.bar-in{max-width:42rem;margin:0 auto;padding:.4rem 1rem;display:flex;align-items:center;gap:.6rem;min-height:2.6rem}
+.bar img{width:1.75rem;height:1.75rem;display:block}
+.bar .brand{font:600 1rem var(--head);color:var(--ink);letter-spacing:.01em}
+.bar .status{margin-left:auto;font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;text-align:right}
+.dot{display:inline-block;width:.5rem;height:.5rem;border-radius:50%;background:var(--accent);flex:none;animation:pulse 2s ease-out infinite}
+.paused .dot{background:#b9c4d6;animation:none}
+.paused .status{color:#8a5a00}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,184,245,.6)}70%{box-shadow:0 0 0 .45rem rgba(63,184,245,0)}100%{box-shadow:0 0 0 0 rgba(63,184,245,0)}}
+
+/* hero */
+.hero{text-align:center;padding:2.5rem 1rem 1rem}
+.hero img{width:min(320px,80vw);height:auto;display:inline-block;border-radius:1.5rem}
+
+/* column */
+main{max-width:42rem;margin:0 auto;padding:0 1rem 5rem}
+h1,h2,h3{font-family:var(--head);color:var(--ink);line-height:1.2;font-weight:600}
+h2{font-size:1.75rem;margin:3.5rem 0 1rem;padding-top:1.5rem;border-top:2px solid var(--pale)}
+h2:first-of-type{border-top:0}
+h3{font-size:1.25rem;margin:2.25rem 0 .5rem;color:var(--secondary)}
+p{margin:0 0 1.15rem}
+strong{font-weight:800}
+ul,ol{padding-left:1.4rem;margin:0 0 1.25rem}
+li{margin:.3rem 0}
+code{font:500 .88em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--pale);color:var(--ink);padding:.1em .35em;border-radius:.3em;overflow-wrap:anywhere}
+hr{border:0;border-top:2px solid var(--pale);margin:3rem 0}
+.tablewrap{overflow-x:auto;margin:0 0 1.25rem}
+table{border-collapse:collapse;font-size:.95rem}
+th,td{border-bottom:1px solid var(--pale);padding:.4rem .7rem;text-align:left}
+th{font-family:var(--head);font-weight:500;color:var(--secondary)}
+main>p:last-child{font:500 1.35rem/1.4 var(--head);color:var(--secondary);text-align:center;margin-top:2rem}
+
+/* live values */
+.live{display:inline-block;background:var(--pale);color:var(--secondary);font-weight:800;padding:0 .55em 0 .4em;border-radius:999px;line-height:1.5;white-space:normal;overflow-wrap:anywhere;transition:background-color .3s}
+.live::before{content:"";display:inline-block;width:.42em;height:.42em;margin-right:.4em;vertical-align:.08em;border-radius:50%;background:var(--accent);animation:pulse 2s ease-out infinite}
+body.not-live .live::before{background:#b9c4d6;animation:none}
+.flash{animation:flash 1.6s ease-out}
+@keyframes flash{0%,35%{background:var(--accent);color:var(--white)}100%{background:var(--pale);color:var(--secondary)}}
+.live-list{list-style:none;padding:0;margin:0 0 1.5rem;border-left:3px solid var(--accent)}
+.live-list li{margin:0;padding:.55rem .9rem;background:linear-gradient(90deg,var(--pale) 0,rgba(217,233,250,0) 100%)}
+.live-list li+li{margin-top:.25rem}
+.live-list .meta{display:block;font-size:.85rem;color:var(--muted)}
+.live-list .empty{color:var(--muted);font-style:italic}
+.live-list li.flash{animation:flashrow 1.6s ease-out}
+@keyframes flashrow{0%,35%{background:rgba(63,184,245,.35)}100%{background:rgba(217,233,250,0)}}
+
+/* sparkline strip */
+.strip{margin:1.5rem 0 2.5rem;padding:1rem;border:2px solid var(--pale);border-radius:1rem}
+.strip h2{font-size:1.1rem;margin:0 0 .75rem;padding:0;border:0;color:var(--secondary)}
+.spark-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.9rem}
+.spark{min-width:0}
+.spark .lab{font-size:.78rem;color:var(--muted);display:flex;justify-content:space-between;gap:.5rem}
+.spark .lab b{color:var(--ink);font-weight:800}
+.spark svg{display:block;width:100%;height:2.4rem;margin-top:.15rem}
+.spark .none{font-size:.8rem;color:var(--muted);font-style:italic;height:2.4rem;display:flex;align-items:center}
+
+@media (min-width:40rem){body{font-size:1.125rem}h2{font-size:2rem}.hero{padding-top:3.5rem}}
+@media (prefers-reduced-motion:reduce){.dot,.live::before{animation:none}.flash,.live-list li.flash{animation:none}}
+
+header.page-nav{max-width:76ch;margin:0 auto;padding:1rem 1.25rem;display:flex;justify-content:space-between;gap:1rem;align-items:center}
+.page-nav a{display:inline-flex;align-items:center;min-height:44px}
+main{padding-top:1.5rem}h1{font-size:clamp(2.6rem,8vw,4rem);line-height:1.08;letter-spacing:-.035em;margin:0 0 1.25rem}main>p:first-of-type{font-size:1.2em;line-height:1.5}
+footer{max-width:76ch;margin:2rem auto;padding:1rem 1.25rem;border-top:1px solid var(--line)}
+footer a{display:inline-flex;align-items:center;min-height:44px}
+a:focus-visible{outline:3px solid currentColor;outline-offset:4px}pre{overflow-x:auto}img,svg{max-width:100%}
+</style></head><body>
+<header class="page-nav"><a href="/">mcphost.dev</a><a href="/wintermute">Wintermute</a></header>
+<main><h1>synthorg: an agent organization that has to show its work</h1>
+<p>synthorg is two things built on one discipline: a simulated product organization and a product-discovery lab. The discipline is that an agent's claims never count. Only published artifacts, recorded event streams and calibrated judgments do. Here is how both work, and what they cannot show yet.</p>
+<h2>The organization: a quarter nobody chats through</h2>
+<p>Giving agents job titles does not, by itself, make an organization. synthorg models a product organization instead: seats for product, engineering, design, finance, marketing and research, plus a human CEO. Every seat has a charter, a reporting line, a model tier and a private goal; every agent carries a persona and its own memory files.</p>
+<p>The agents never read each other's transcripts. They communicate only by publishing typed Markdown artifacts (opportunity assessments, feasibility notes, objectives, decisions, meeting minutes, critic reports) onto a bus that drops notices into subscribers' inbox files. Reasoning that never became an artifact is invisible to the rest of the organization, so the record of the run is the run.</p>
+<p>Two mechanisms keep that record honest. Decision meetings write down each participant's position before the discussion starts, a design choice against anchoring on whoever speaks first, not a proof that groupthink is gone. And a Critic outside the org chart checks decision artifacts: mechanically where a check can be mechanical (market facts cited, evidence graded, objectives framed as problems rather than pre-picked solutions, approvals complete), by model judgment where it cannot. Critics can be wrong too; their reports are artifacts like everything else.</p>
+<p>A run is a state machine, not an open-ended conversation. It plans a quarter, then loops week by week: collect intentions, resolve events, reflect, render a dashboard; a debrief closes the default thirteen-week quarter. Weekly resolution clears the action history while memories persist. A seeded market model moves cash, customers, churn, reputation and technical debt in response, and those are modeled variables, never revenue or real customers. The human CEO answers escalated decisions and can inject events; some decisions pause the simulated clock until answered. This is not a human-free system, by design.</p>
+<p>Why build it? Role-play is cheap. The question worth asking of a simulated organization is whether its interactions produce evidence that changes decisions, and here artifacts and event streams are the only form evidence can take.</p>
+<h2>Record and replay</h2>
+<p>Every model call in a run is recorded and linked to the agent that made it, the artifact it fed and the simulated week it belongs to. The replay check reruns a recorded week, compares its artifacts byte-for-byte and asserts zero live calls. A cache miss during replay is an error, never a silent fallback to the live model. Deterministic fake modes exist for tests; live runs record the model calls.</p>
+<p>Be precise about what replay buys. It is a reproducibility check on recorded material: do unchanged inputs and recorded model responses reproduce the artifacts? It does not show that a fresh call to the same model would answer the same way. Counterfactuals are not free either: change an event or a decision and the downstream prompts change, which means new, paid model calls. Replay pins down what happened; a perturbed quarter is a new experiment with a new bill.</p>
+<p>One limit is worth stating plainly: offline replay proves the plumbing, and a simulated quarter, however reproducible, is not thirteen weeks of real customer behavior.</p>
+<h2>The lab, through one round of compete</h2>
+<p>The discovery lab points the same machinery at a narrower question: is a given tool idea any good? It is a set of related workflows, not one monolithic run or a fixed pipeline. discover takes a product brief through research, a synthetic customer panel and candidate artifacts to a Critic review, without simulating the whole organization. consume sends synthetic personas to attempt tasks over real Model Context Protocol sessions against mcphost, the tool-hosting service the lab runs its live experiments on (a separate, real product); the evidence is the session record and post-session probes, never the persona's own claim of success, because a completed session is not a verified completed task. explore hands a persona a goal, a budget and a tool surface and watches for paths no scripted task would find, with no guarantee that it finds any.</p>
+<p>compete is the clearest worked round. Builder agents get a theme and a budget, each with its own synthetic account on the tool host, and publish tools. A pre-gate admits a tool once its descriptor is published, a call against it has succeeded, and a consumer task against it has a recorded result. The gate's checks are mechanical, but one input, that consumer-task result, comes from the consume judge, so admission is not model-free end to end.</p>
+<p>Admitted tools face buyer judges. Each judge plays a customer segment with its own agenda and a finite wallet. A judge abstains when a descriptor trips one of its disqualifiers, and a judge with an empty wallet is done buying. For an eligible tool with wallet remaining, the judge makes one trial call and then a model decision to buy or pass; a failed trial forces a pass. Every outcome lands in the record with its reason, abstentions included.</p>
+<p>Before a live competition round, the buyer judges must pass calibration against six hand-written planted submissions: two useful, two useless, two broken. The bar is that purchase ranking agrees with the planted truth and no broken tool gets bought. Calibration shows the judges can discriminate on plants; it does not show that simulated buyers predict real customers. Purchases are simulated, and across rounds purchase share can set the next round's builder budgets. That is selection pressure inside a simulation. It is not revenue, and it is not demand.</p>
+<h2>What a receipt proves, and what it cannot</h2>
+<p>Here is one real record, read exactly. In an explore session captured in September 2026, a persona in the admin-agent segment worked through OAuth against a live endpoint: discovery, metadata, registration, authorization, consent and token exchange all recorded okay, and the session ended with status completed. The same record shows an empty capability list and nine events left unverified. Authenticated, completed and accomplished are three different outcomes, and this receipt licenses only the first two. Calling the session a failure would outrun the record; calling it a success would too. Refusing to round up is the point.</p>
+<p>The same discipline applies to this page. It describes how synthorg is designed and what its records can and cannot show; it is not a results announcement. The limits no example above dissolves: synthetic demand is not real demand, judge calibration is not external validity, and judges built on the same model families as the builders can share their blind spots.</p>
+<p>What remains is one structure seen twice. The organization forces agents to act through published artifacts and recorded events; the lab holds judgments of agents' work to the same standard. There is no install link here, and the code is private while the system is built. The bet is that agent systems become trustworthy the way organizations do: not by sounding sure, but by keeping records someone else can check.</p></main>
+<footer><a href="/wintermute">The system around synthorg: Wintermute</a></footer>
+</body></html>
